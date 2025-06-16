@@ -29,6 +29,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.54.2(react@19.0.0))
+      '@prisma/client':
+        specifier: ^6.9.0
+        version: 6.9.0(prisma@6.9.0(typescript@5.7.2))(typescript@5.7.2)
       '@radix-ui/react-accordion':
         specifier: ^1.2.3
         version: 1.2.3(@types/react-dom@19.0.2(@types/react@19.0.1))(@types/react@19.0.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -173,6 +176,12 @@ importers:
       postcss:
         specifier: 8.4.49
         version: 8.4.49
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.7
+      prisma:
+        specifier: ^6.9.0
+        version: 6.9.0(typescript@5.7.2)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -981,6 +990,36 @@ packages:
     engines: {node: '>=14'}
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
+
+  '@prisma/client@6.9.0':
+    resolution: {integrity: sha512-Gg7j1hwy3SgF1KHrh0PZsYvAaykeR0PaxusnLXydehS96voYCGt1U5zVR31NIouYc63hWzidcrir1a7AIyCsNQ==}
+    engines: {node: '>=18.18'}
+    peerDependencies:
+      prisma: '*'
+      typescript: '>=5.1.0'
+    peerDependenciesMeta:
+      prisma:
+        optional: true
+      typescript:
+        optional: true
+
+  '@prisma/config@6.9.0':
+    resolution: {integrity: sha512-Wcfk8/lN3WRJd5w4jmNQkUwhUw0eksaU/+BlAJwPQKW10k0h0LC9PD/6TQFmqKVbHQL0vG2z266r0S1MPzzhbA==}
+
+  '@prisma/debug@6.9.0':
+    resolution: {integrity: sha512-bFeur/qi/Q+Mqk4JdQ3R38upSYPebv5aOyD1RKywVD+rAMLtRkmTFn28ZuTtVOnZHEdtxnNOCH+bPIeSGz1+Fg==}
+
+  '@prisma/engines-version@6.9.0-10.81e4af48011447c3cc503a190e86995b66d2a28e':
+    resolution: {integrity: sha512-Qp9gMoBHgqhKlrvumZWujmuD7q4DV/gooEyPCLtbkc13EZdSz2RsGUJ5mHb3RJgAbk+dm6XenqG7obJEhXcJ6Q==}
+
+  '@prisma/engines@6.9.0':
+    resolution: {integrity: sha512-im0X0bwDLA0244CDf8fuvnLuCQcBBdAGgr+ByvGfQY9wWl6EA+kRGwVk8ZIpG65rnlOwtaWIr/ZcEU5pNVvq9g==}
+
+  '@prisma/fetch-engine@6.9.0':
+    resolution: {integrity: sha512-PMKhJdl4fOdeE3J3NkcWZ+tf3W6rx3ht/rLU8w4SXFRcLhd5+3VcqY4Kslpdm8osca4ej3gTfB3+cSk5pGxgFg==}
+
+  '@prisma/get-platform@6.9.0':
+    resolution: {integrity: sha512-/B4n+5V1LI/1JQcHp+sUpyRT1bBgZVPHbsC4lt4/19Xp4jvNIVcq5KYNtQDk5e/ukTSjo9PZVAxxy9ieFtlpTQ==}
 
   '@prisma/instrumentation@6.7.0':
     resolution: {integrity: sha512-3NuxWlbzYNevgPZbV0ktA2z6r0bfh0g22ONTxcK09a6+6MdIPjHsYx1Hnyu4yOq+j7LmupO5J69hhuOnuvj8oQ==}
@@ -3750,6 +3789,10 @@ packages:
     resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
     engines: {node: '>=0.10.0'}
 
+  postgres@3.4.7:
+    resolution: {integrity: sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw==}
+    engines: {node: '>=12'}
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -3813,6 +3856,16 @@ packages:
     resolution: {integrity: sha512-e9MewbtFo+Fevyuxn/4rrcDAaq0IYxPGLvObpQjiZBMAzB9IGmzlnG9RZy3FFas+eBMu2vA0CszMeduow5dIuQ==}
     engines: {node: '>=14'}
     hasBin: true
+
+  prisma@6.9.0:
+    resolution: {integrity: sha512-resJAwMyZREC/I40LF6FZ6rZTnlrlrYrb63oW37Gq+U+9xHwbyMSPJjKtM7VZf3gTO86t/Oyz+YeSXr3CmAY1Q==}
+    engines: {node: '>=18.18'}
+    hasBin: true
+    peerDependencies:
+      typescript: '>=5.1.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   progress@2.0.3:
     resolution: {integrity: sha512-7PiHtLll5LdnKIMw100I+8xJXR5gW2QwWYkT6iJva0bXitZKa/XMrSbdmg3r2Xnaidz9Qumd0VPaMrZlF9V9sA==}
@@ -5261,6 +5314,36 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.0)
+
+  '@prisma/client@6.9.0(prisma@6.9.0(typescript@5.7.2))(typescript@5.7.2)':
+    optionalDependencies:
+      prisma: 6.9.0(typescript@5.7.2)
+      typescript: 5.7.2
+
+  '@prisma/config@6.9.0':
+    dependencies:
+      jiti: 2.4.2
+
+  '@prisma/debug@6.9.0': {}
+
+  '@prisma/engines-version@6.9.0-10.81e4af48011447c3cc503a190e86995b66d2a28e': {}
+
+  '@prisma/engines@6.9.0':
+    dependencies:
+      '@prisma/debug': 6.9.0
+      '@prisma/engines-version': 6.9.0-10.81e4af48011447c3cc503a190e86995b66d2a28e
+      '@prisma/fetch-engine': 6.9.0
+      '@prisma/get-platform': 6.9.0
+
+  '@prisma/fetch-engine@6.9.0':
+    dependencies:
+      '@prisma/debug': 6.9.0
+      '@prisma/engines-version': 6.9.0-10.81e4af48011447c3cc503a190e86995b66d2a28e
+      '@prisma/get-platform': 6.9.0
+
+  '@prisma/get-platform@6.9.0':
+    dependencies:
+      '@prisma/debug': 6.9.0
 
   '@prisma/instrumentation@6.7.0(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -8238,6 +8321,8 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
+  postgres@3.4.7: {}
+
   prelude-ls@1.2.1: {}
 
   prettier-plugin-tailwindcss@0.6.11(prettier@3.4.2):
@@ -8245,6 +8330,13 @@ snapshots:
       prettier: 3.4.2
 
   prettier@3.4.2: {}
+
+  prisma@6.9.0(typescript@5.7.2):
+    dependencies:
+      '@prisma/config': 6.9.0
+      '@prisma/engines': 6.9.0
+    optionalDependencies:
+      typescript: 5.7.2
 
   progress@2.0.3: {}
 

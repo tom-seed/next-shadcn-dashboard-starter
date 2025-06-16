@@ -1,0 +1,79 @@
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  url       String?
+  crawls    Crawl[]
+  urls      Urls[]
+  audits    Audit[]
+}
+
+model Crawl {
+  id        Int      @id @default(autoincrement())
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  Int
+  url       String
+  createdAt DateTime @default(now())
+  urls      Urls[]
+  audit     Audit?
+}
+
+model Urls {
+  id             Int      @id @default(autoincrement())
+  client         Client   @relation(fields: [clientId], references: [id])
+  clientId       Int
+  crawl          Crawl?   @relation(fields: [crawlId], references: [id])
+  crawlId        Int?
+  url            String
+  status         Int?
+  originalStatus String?
+  redirectTarget String?
+  canonical      String?
+  canonicalStatus Int?
+  isSelfReferencingCanonical Boolean @default(false)
+  isCanonicalised Boolean @default(false)
+  metaTitle      String?
+  metaDescription String?
+  internalLinks  String[]
+  externalLinks  String[]
+  internalLinkStatuses Json
+  rawHtml        String?
+  h1             String[]
+  h2             String[]
+  h3             String[]
+  h4             String[]
+  h5             String[]
+  h6             String[]
+  createdAt      DateTime @default(now())
+}
+
+model Audit {
+  id        Int      @id @default(autoincrement())
+  crawl     Crawl    @relation(fields: [crawlId], references: [id])
+  crawlId   Int      @unique
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  Int
+  createdAt DateTime @default(now())
+  pages_missing_title        Int @default(0)
+  too_short_title            Int @default(0)
+  too_long_title             Int @default(0)
+  pages_missing_description  Int @default(0)
+  too_short_description      Int @default(0)
+  too_long_description       Int @default(0)
+  pages_missing_h1           Int @default(0)
+  pages_with_multiple_h1s    Int @default(0)
+  pages_with_duplicate_h1s   Int @default(0)
+  pages_missing_h2           Int @default(0)
+  pages_with_duplicate_h2s   Int @default(0)
+  pages_missing_h3           Int @default(0)
+  pages_with_duplicate_h3s   Int @default(0)
+  pages_missing_h4           Int @default(0)
+  pages_with_duplicate_h4s   Int @default(0)
+  pages_missing_h5           Int @default(0)
+  pages_with_duplicate_h5s   Int @default(0)
+  pages_missing_h6           Int @default(0)
+  pages_with_duplicate_h6s   Int @default(0)
+  pages_200_response         Int @default(0)
+  pages_3xx_response         Int @default(0)
+  pages_4xx_response         Int @default(0)
+  pages_5xx_response         Int @default(0)
+}
