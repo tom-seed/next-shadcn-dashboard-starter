@@ -1,3 +1,12 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_DATABASE_URL")
+}
+
 model Client {
   id        Int      @id @default(autoincrement())
   name      String
@@ -36,7 +45,6 @@ model Urls {
   internalLinks  String[]
   externalLinks  String[]
   internalLinkStatuses Json
-  rawHtml        String?
   h1             String[]
   h2             String[]
   h3             String[]
@@ -63,14 +71,19 @@ model Audit {
   pages_with_multiple_h1s    Int @default(0)
   pages_with_duplicate_h1s   Int @default(0)
   pages_missing_h2           Int @default(0)
+  pages_with_multiple_h2s    Int @default(0)
   pages_with_duplicate_h2s   Int @default(0)
   pages_missing_h3           Int @default(0)
+  pages_with_multiple_h3s    Int @default(0)
   pages_with_duplicate_h3s   Int @default(0)
   pages_missing_h4           Int @default(0)
+  pages_with_multiple_h4s    Int @default(0)
   pages_with_duplicate_h4s   Int @default(0)
   pages_missing_h5           Int @default(0)
+  pages_with_multiple_h5s    Int @default(0)
   pages_with_duplicate_h5s   Int @default(0)
   pages_missing_h6           Int @default(0)
+  pages_with_multiple_h6s    Int @default(0)
   pages_with_duplicate_h6s   Int @default(0)
   pages_200_response         Int @default(0)
   pages_3xx_response         Int @default(0)

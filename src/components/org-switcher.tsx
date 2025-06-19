@@ -1,7 +1,7 @@
 'use client';
 
-import { Check, ChevronsUpDown, GalleryVerticalEnd } from 'lucide-react';
 import * as React from 'react';
+import { Check, ChevronsUpDown, GalleryVerticalEnd } from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -15,34 +15,28 @@ import {
   SidebarMenuItem
 } from '@/components/ui/sidebar';
 
-interface Tenant {
-  id: string;
+interface Client {
+  id: string | number;
   name: string;
 }
 
 export function OrgSwitcher({
-  tenants,
-  defaultTenant,
-  onTenantSwitch
+  clients,
+  defaultClient,
+  onClientSwitch
 }: {
-  tenants: Tenant[];
-  defaultTenant: Tenant;
-  onTenantSwitch?: (tenantId: string) => void;
+  clients: Client[];
+  defaultClient: Client;
+  onClientSwitch?: (clientId: string | number) => void;
 }) {
-  const [selectedTenant, setSelectedTenant] = React.useState<
-    Tenant | undefined
-  >(defaultTenant || (tenants.length > 0 ? tenants[0] : undefined));
+  const [selectedClient, setSelectedClient] =
+    React.useState<Client>(defaultClient);
 
-  const handleTenantSwitch = (tenant: Tenant) => {
-    setSelectedTenant(tenant);
-    if (onTenantSwitch) {
-      onTenantSwitch(tenant.id);
-    }
+  const handleClientSwitch = (client: Client) => {
+    setSelectedClient(client);
+    onClientSwitch?.(client.id);
   };
 
-  if (!selectedTenant) {
-    return null;
-  }
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -56,8 +50,8 @@ export function OrgSwitcher({
                 <GalleryVerticalEnd className='size-4' />
               </div>
               <div className='flex flex-col gap-0.5 leading-none'>
-                <span className='font-semibold'>Next Starter</span>
-                <span className=''>{selectedTenant.name}</span>
+                <span className='mb-1 font-semibold'>Atlas SEO</span>
+                <span>{selectedClient.name}</span>
               </div>
               <ChevronsUpDown className='ml-auto' />
             </SidebarMenuButton>
@@ -66,13 +60,13 @@ export function OrgSwitcher({
             className='w-[--radix-dropdown-menu-trigger-width]'
             align='start'
           >
-            {tenants.map((tenant) => (
+            {clients.map((client) => (
               <DropdownMenuItem
-                key={tenant.id}
-                onSelect={() => handleTenantSwitch(tenant)}
+                key={client.id}
+                onSelect={() => handleClientSwitch(client)}
               >
-                {tenant.name}{' '}
-                {tenant.id === selectedTenant.id && (
+                {client.name}
+                {client.id === selectedClient.id && (
                   <Check className='ml-auto' />
                 )}
               </DropdownMenuItem>

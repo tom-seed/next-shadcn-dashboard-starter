@@ -1,18 +1,11 @@
 'use client';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+
+import * as React from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
+import { SignOutButton } from '@clerk/nextjs';
+
 import {
   Sidebar,
   SidebarContent,
@@ -28,68 +21,136 @@ import {
   SidebarMenuSubItem,
   SidebarRail
 } from '@/components/ui/sidebar';
-import { UserAvatarProfile } from '@/components/user-avatar-profile';
-import { navItems } from '@/constants/data';
-import { useMediaQuery } from '@/hooks/use-media-query';
-import { useUser } from '@clerk/nextjs';
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible';
+
 import {
   IconBell,
   IconChevronRight,
   IconChevronsDown,
   IconCreditCard,
   IconLogout,
-  IconPhotoUp,
   IconUserCircle
 } from '@tabler/icons-react';
-import { SignOutButton } from '@clerk/nextjs';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import * as React from 'react';
+
+import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { Icons } from '../icons';
 import { OrgSwitcher } from '../org-switcher';
-export const company = {
-  name: 'Acme Inc',
-  logo: IconPhotoUp,
-  plan: 'Enterprise'
-};
 
-const tenants = [
-  { id: '1', name: 'Acme Inc' },
-  { id: '2', name: 'Beta Corp' },
-  { id: '3', name: 'Gamma Ltd' }
-];
+type NavItem = {
+  title: string;
+  url: string;
+  icon: keyof typeof Icons;
+  shortcut?: string[];
+  isActive?: boolean;
+  items: NavItem[];
+};
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { isOpen } = useMediaQuery();
   const { user } = useUser();
   const router = useRouter();
-  const handleSwitchTenant = (_tenantId: string) => {
-    // Tenant switching functionality would be implemented here
-  };
 
-  const activeTenant = tenants[0];
+  const [clients, setClients] = React.useState<{ id: number; name: string }[]>(
+    []
+  );
+  const [activeClient, setActiveClient] = React.useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
+  // Dynamically generate navItems based on active client
+  const navItems: NavItem[] = React.useMemo(() => {
+    if (!activeClient) return [];
+
+    const base = `/dashboard/${activeClient.id}`;
+
+    return [
+      {
+        title: 'Dashboard',
+        url: `${base}/overview`,
+        icon: 'dashboard',
+        items: []
+      },
+      {
+        title: 'Urls',
+        url: `${base}/urls`,
+        icon: 'link',
+        items: []
+      },
+      {
+        title: 'Audits',
+        url: `${base}/audits`,
+        icon: 'devicesCheck',
+        items: []
+      },
+      {
+        title: 'Kanban',
+        url: `${base}/kanban`,
+        icon: 'kanban',
+        items: []
+      }
+    ];
+  }, [activeClient]);
+
+  // Fetch clients on mount
   React.useEffect(() => {
-    // Side effects based on sidebar state changes
-  }, [isOpen]);
+    const loadClients = async () => {
+      try {
+        const res = await fetch('/api/client');
+        const data = await res.json();
+        setClients(data);
+        setActiveClient(data[0]); // Default to first client
+      } catch (err) {
+        //console.error('Failed to load clients:', err);
+      }
+    };
+    loadClients();
+  }, []);
+
+  const handleClientSwitch = (clientId: string | number) => {
+    const client = clients.find((c) => c.id === Number(clientId));
+    if (client) {
+      setActiveClient(client);
+      router.push(`/dashboard/${client.id}/overview`);
+    }
+  };
 
   return (
     <Sidebar collapsible='icon'>
       <SidebarHeader>
-        <OrgSwitcher
-          tenants={tenants}
-          defaultTenant={activeTenant}
-          onTenantSwitch={handleSwitchTenant}
-        />
+        {activeClient && (
+          <OrgSwitcher
+            clients={clients}
+            defaultClient={activeClient}
+            onClientSwitch={handleClientSwitch}
+          />
+        )}
       </SidebarHeader>
+
       <SidebarContent className='overflow-x-hidden'>
         <SidebarGroup>
           <SidebarGroupLabel>Overview</SidebarGroupLabel>
           <SidebarMenu>
             {navItems.map((item) => {
-              const Icon = item.icon ? Icons[item.icon] : Icons.logo;
-              return item?.items && item?.items?.length > 0 ? (
+              const Icon = Icons[item.icon] ?? Icons.logo;
+              const isActive = pathname === item.url;
+
+              return item.items.length > 0 ? (
                 <Collapsible
                   key={item.title}
                   asChild
@@ -100,16 +161,16 @@ export default function AppSidebar() {
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={pathname === item.url}
+                        isActive={isActive}
                       >
-                        {item.icon && <Icon />}
+                        <Icon />
                         <span>{item.title}</span>
                         <IconChevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {item.items?.map((subItem) => (
+                        {item.items.map((subItem) => (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
                               asChild
@@ -130,7 +191,7 @@ export default function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     tooltip={item.title}
-                    isActive={pathname === item.url}
+                    isActive={isActive}
                   >
                     <Link href={item.url}>
                       <Icon />
@@ -143,6 +204,7 @@ export default function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -163,7 +225,7 @@ export default function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className='w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg'
+                className='min-w-56 rounded-lg'
                 side='bottom'
                 align='end'
                 sideOffset={4}
@@ -180,7 +242,6 @@ export default function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-
                 <DropdownMenuGroup>
                   <DropdownMenuItem
                     onClick={() => router.push('/dashboard/profile')}
@@ -207,6 +268,7 @@ export default function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   );
