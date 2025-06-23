@@ -16,34 +16,71 @@ import { BarGraph } from '@/features/overview/components/bar-graph';
 import { AreaGraph } from '@/features/overview/components/area-graph';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { RecentSales } from '@/features/overview/components/recent-sales';
-import { IconTrendingUp } from '@tabler/icons-react';
+import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
+import { getTrend } from '@/lib/helpers/getTrend';
 
 export default function ClientOverviewPage() {
   const { clientId } = useParams();
   const [client, setClient] = useState<{ id: number; name: string } | null>(
     null
   );
-  const [audit, setAudit] = useState<any>(null);
+  const [latest, setLatest] = useState<any>(null);
+  const [previous, setPrevious] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
         const resClient = await fetch(`/api/client/${clientId}`);
-        const resAudit = await fetch(`/api/client/${clientId}/audits`);
+        const resAudit = await fetch(`/api/client/${clientId}/audits/latest`);
         const clientData = await resClient.json();
-        const auditData = await resAudit.json();
+        const { latest, previous } = await resAudit.json();
         setClient(clientData);
-        setAudit(auditData);
+        setLatest(latest);
+        setPrevious(previous);
       } catch (error) {
-        //console.error('Error fetching client overview:', error);
+        console.error('Error fetching client overview:', error);
       } finally {
         setLoading(false);
       }
     }
     fetchData();
   }, [clientId]);
+
+  const getTrendInfo = (metric: string) => {
+    const value = latest?.[metric] ?? 0;
+    const prev = previous?.[metric] ?? 0;
+    const { delta, direction } = getTrend(value, prev);
+
+    const badge =
+      direction !== 'neutral' ? (
+        <Badge
+          variant='outline'
+          className={
+            direction === 'up'
+              ? 'text-green-600'
+              : direction === 'down'
+                ? 'text-red-600'
+                : ''
+          }
+        >
+          {direction === 'up' ? (
+            <IconTrendingUp className='mr-1 h-4 w-4' />
+          ) : (
+            <IconTrendingDown className='mr-1 h-4 w-4' />
+          )}
+          {delta > 0 ? `+${delta}%` : `${delta}%`}
+        </Badge>
+      ) : null;
+
+    return { badge, direction };
+  };
+
+  const { badge: trend200, direction: dir200 } =
+    getTrendInfo('pages_200_response');
+  const { badge: trend4xx, direction: dir4xx } =
+    getTrendInfo('pages_4xx_response');
 
   return (
     <PageContainer>
@@ -66,19 +103,18 @@ export default function ClientOverviewPage() {
                 {loading ? (
                   <Skeleton className='h-8 w-24' />
                 ) : (
-                  audit?.pages_200_response || 0
+                  latest?.pages_200_response || 0
                 )}
               </CardTitle>
-              <CardAction>
-                <Badge variant='outline'>
-                  <IconTrendingUp />
-                  +12.5%
-                </Badge>
-              </CardAction>
+              <CardAction>{!loading && trend200}</CardAction>
             </CardHeader>
             <CardFooter className='flex-col items-start gap-1.5 text-sm'>
               <div className='line-clamp-1 flex gap-2 font-medium'>
-                Trending up this month <IconTrendingUp className='size-4' />
+                {dir200 === 'up'
+                  ? 'Trending up'
+                  : dir200 === 'down'
+                    ? 'Trending down'
+                    : 'No change'}
               </div>
               <div className='text-muted-foreground'>
                 Successful pages (200 OK)
@@ -93,19 +129,18 @@ export default function ClientOverviewPage() {
                 {loading ? (
                   <Skeleton className='h-8 w-24' />
                 ) : (
-                  audit?.pages_4xx_response || 0
+                  latest?.pages_4xx_response || 0
                 )}
               </CardTitle>
-              <CardAction>
-                <Badge variant='outline'>
-                  <IconTrendingUp />
-                  +12.5%
-                </Badge>
-              </CardAction>
+              <CardAction>{!loading && trend4xx}</CardAction>
             </CardHeader>
             <CardFooter className='flex-col items-start gap-1.5 text-sm'>
               <div className='line-clamp-1 flex gap-2 font-medium'>
-                Trending up this month <IconTrendingUp className='size-4' />
+                {dir4xx === 'up'
+                  ? 'Trending up'
+                  : dir4xx === 'down'
+                    ? 'Trending down'
+                    : 'No change'}
               </div>
               <div className='text-muted-foreground'>Error pages (4xx)</div>
             </CardFooter>
@@ -118,7 +153,7 @@ export default function ClientOverviewPage() {
                 {loading ? (
                   <Skeleton className='h-8 w-24' />
                 ) : (
-                  audit?.pages_missing_title || 0
+                  latest?.pages_missing_title || 0
                 )}
               </CardTitle>
               <CardFooter className='text-muted-foreground text-sm'>

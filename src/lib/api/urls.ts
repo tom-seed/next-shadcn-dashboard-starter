@@ -1,6 +1,6 @@
 // src/lib/api/urls.ts
 export async function getUrls(clientId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   const res = await fetch(`${baseUrl}/api/client/${clientId}/urls`, {
     cache: 'no-store'
@@ -15,7 +15,7 @@ export async function getUrls(clientId: string) {
 
 // lib/api/urls.ts
 export async function getUrlById(clientId: string, urlId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
   const res = await fetch(`${baseUrl}/api/client/${clientId}/urls/${urlId}`, {
     headers: {

@@ -11,6 +11,7 @@ model Client {
   id        Int      @id @default(autoincrement())
   name      String
   url       String?
+  cron      String?
   crawls    Crawl[]
   urls      Urls[]
   audits    Audit[]
