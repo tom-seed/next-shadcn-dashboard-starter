@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       cron: cron || 'once',
       webhooks: {
         destination:
-          'https://next-shadcn-dashboard-starter-liart.vercel.app/webhook/spider',
+          'https://next-shadcn-dashboard-starter-liart.vercel.app/api/webhook/spider',
         on_credits_depleted: true,
         on_credits_half_depleted: true,
         on_website_status: true,
