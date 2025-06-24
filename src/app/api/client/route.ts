@@ -7,6 +7,8 @@ export async function POST(req: Request) {
   try {
     const { name, url } = await req.json();
 
+    console.log('📨 Incoming client creation:', { name, url });
+
     const client = await prisma.client.create({ data: { name, url } });
 
     const crawl = await prisma.crawl.create({
@@ -16,7 +18,7 @@ export async function POST(req: Request) {
     const spiderPayload = {
       url,
       webhooks: {
-        destination: `${process.env.NEXT_PUBLIC_APP_URL}api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
+        destination: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
         on_website_status: true
       },
       limit: 0,
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
       return_json_data: true,
       readability: true,
       concurrency_limit: 1,
-      return_format: 'json', // ✅ switch to json to enable `extracted_data`
+      return_format: 'json',
       external_domains: [],
       root_selector: 'body',
       subdomains: true,
@@ -42,6 +44,8 @@ export async function POST(req: Request) {
       redirect_policy: 'loose'
     };
 
+    console.log('🌐 Creating Spider crawl with:', spiderPayload);
+
     const spiderRes = await fetch('https://api.spider.cloud/crawl', {
       method: 'POST',
       headers: {
@@ -51,10 +55,12 @@ export async function POST(req: Request) {
       body: JSON.stringify(spiderPayload)
     });
 
+    const spiderText = await spiderRes.text();
+    console.log('🪲 Spider response:', spiderRes.status, spiderText);
+
     if (!spiderRes.ok) {
-      const errorText = await spiderRes.text();
       return NextResponse.json(
-        { success: false, error: errorText },
+        { success: false, error: spiderText },
         { status: 500 }
       );
     }
@@ -65,6 +71,7 @@ export async function POST(req: Request) {
       clientId: client.id
     });
   } catch (error) {
+    console.error('❌ Error in POST /api/client:', error);
     return NextResponse.json(
       { success: false, error: (error as Error).message },
       { status: 500 }
@@ -79,6 +86,7 @@ export async function GET() {
     });
     return NextResponse.json(clients);
   } catch (err) {
+    console.error('❌ Error in GET /api/client:', err);
     return NextResponse.json(
       { error: 'Failed to load clients' },
       { status: 500 }

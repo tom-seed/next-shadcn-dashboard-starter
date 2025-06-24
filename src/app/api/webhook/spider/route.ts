@@ -32,3 +32,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, ignored: true });
   }
 }
+
+export async function GET(req: Request) {
+  return NextResponse.json({
+    ok: true,
+    message: 'Webhook GET route is working.'
+  });
+}
