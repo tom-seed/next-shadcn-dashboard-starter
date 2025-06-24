@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const spiderPayload = {
       url,
       webhooks: {
-        destination: `${process.env.NEXT_PUBLIC_APP_URL}api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
+        destination: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
         on_website_status: true,
         on_find: true,
         on_find_metadata: true
