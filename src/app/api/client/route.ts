@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const spiderPayload = {
       url,
       webhooks: {
-        destination: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
+        destination: `${process.env.NEXT_PUBLIC_APP_URL}api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
         on_website_status: true,
         on_find: true,
         on_find_metadata: true
@@ -41,26 +41,7 @@ export async function POST(req: Request) {
       fingerprint: true,
       anti_bot: true,
       stealth: true,
-      redirect_policy: 'loose',
-      css_extraction_map: {
-        '*': [
-          {
-            name: 'headers',
-            selectors: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
-          },
-          {
-            name: 'meta',
-            selectors: [
-              "meta[name='description']",
-              "meta[name='keywords']",
-              'title'
-            ]
-          }
-        ]
-      },
-      wait_for: {
-        page_navigations: true
-      }
+      redirect_policy: 'loose'
     };
 
     const spiderRes = await fetch('https://api.spider.cloud/crawl', {
