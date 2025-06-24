@@ -5,22 +5,18 @@ const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {
-    const { name, url, cron } = await req.json();
+    const { name, url } = await req.json();
 
-    // 1. Create the client
-    const client = await prisma.client.create({
-      data: { name, url, cron }
+    const client = await prisma.client.create({ data: { name, url } });
+
+    const crawl = await prisma.crawl.create({
+      data: { clientId: client.id, url }
     });
 
-    // 2. Prepare Spider API body
     const spiderPayload = {
-      url: url,
-      cron: cron || 'once',
+      url,
       webhooks: {
-        destination:
-          'https://next-shadcn-dashboard-starter-liart.vercel.app/api/webhook/spider',
-        on_credits_depleted: true,
-        on_credits_half_depleted: true,
+        destination: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
         on_website_status: true,
         on_find: true,
         on_find_metadata: true
@@ -31,11 +27,13 @@ export async function POST(req: Request) {
       metadata: true,
       request: 'smart',
       sitemap: true,
-      full_resources: false,
+      full_resources: true, // ✅ MUST be true to allow JS rendering
       return_page_links: true,
       return_headers: true,
+      return_json_data: true,
+      readability: true,
       concurrency_limit: 1,
-      return_format: 'raw',
+      return_format: 'json', // ✅ switch to json to enable `extracted_data`
       external_domains: [],
       root_selector: 'body',
       subdomains: true,
@@ -43,13 +41,28 @@ export async function POST(req: Request) {
       fingerprint: true,
       anti_bot: true,
       stealth: true,
-      redirect_policy: 'loose'
+      redirect_policy: 'loose',
+      css_extraction_map: {
+        '*': [
+          {
+            name: 'headers',
+            selectors: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+          },
+          {
+            name: 'meta',
+            selectors: [
+              "meta[name='description']",
+              "meta[name='keywords']",
+              'title'
+            ]
+          }
+        ]
+      },
+      wait_for: {
+        page_navigations: true
+      }
     };
 
-    console.log('🕷️ Triggering Spider.cloud crawl with payload:');
-    console.dir(spiderPayload, { depth: null });
-
-    // 3. Send to Spider.cloud
     const spiderRes = await fetch('https://api.spider.cloud/crawl', {
       method: 'POST',
       headers: {
@@ -59,31 +72,20 @@ export async function POST(req: Request) {
       body: JSON.stringify(spiderPayload)
     });
 
-    console.log(
-      '📦 JSON payload being sent:',
-      JSON.stringify(spiderPayload, null, 2)
-    );
-
     if (!spiderRes.ok) {
       const errorText = await spiderRes.text();
-      console.error('❌ Spider.cloud responded with error:', errorText);
       return NextResponse.json(
-        { success: false, error: 'Failed to trigger crawl', detail: errorText },
+        { success: false, error: errorText },
         { status: 500 }
       );
     }
 
-    const spiderData = await spiderRes.json();
-    console.log('✅ Spider.cloud response:', spiderData);
-
     return NextResponse.json({
       success: true,
-      message: 'Crawl triggered',
-      clientId: client.id,
-      spiderId: spiderData?.id
+      redirectUrl: `/dashboard/${client.id}/overview`,
+      clientId: client.id
     });
   } catch (error) {
-    console.error('🔥 Unexpected error in client POST route:', error);
     return NextResponse.json(
       { success: false, error: (error as Error).message },
       { status: 500 }

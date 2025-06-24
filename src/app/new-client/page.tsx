@@ -21,13 +21,29 @@ export default function NewClientPage() {
 
   const handleSubmit = async () => {
     setLoading(true);
-    const res = await fetch('/api/client', {
-      method: 'POST',
-      body: JSON.stringify({ name, url, cron })
-    });
-    const data = await res.json();
-    alert(data.message || data.error);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/client', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, url, cron })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.error || 'Something went wrong');
+      } else {
+        // ✅ Redirect instead of alerting
+        window.location.href = data.redirectUrl;
+      }
+    } catch (err) {
+      alert('An unexpected error occurred.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
