@@ -16,16 +16,30 @@ export async function POST(req: Request) {
     const spiderPayload = {
       url,
       webhooks: {
-        destination: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
+        destination: `${process.env.NEXT_PUBLIC_APP_URL}api/webhook/spider?crawlId=${crawl.id}&clientId=${client.id}`,
         on_website_status: true
       },
-      request: 'basic', // simplified for debugging
-      full_resources: false, // avoids JS rendering overhead
-      sitemap: true,
+      limit: 0,
+      proxy_enabled: true,
       store_data: true,
-      return_format: 'json',
+      metadata: true,
+      request: 'smart',
+      sitemap: true,
+      full_resources: true, // ✅ MUST be true to allow JS rendering
       return_page_links: true,
-      limit: 0
+      return_headers: true,
+      return_json_data: true,
+      readability: true,
+      concurrency_limit: 1,
+      return_format: 'json', // ✅ switch to json to enable `extracted_data`
+      external_domains: [],
+      root_selector: 'body',
+      subdomains: true,
+      tld: false,
+      fingerprint: true,
+      anti_bot: true,
+      stealth: true,
+      redirect_policy: 'loose'
     };
 
     const spiderRes = await fetch('https://api.spider.cloud/crawl', {
