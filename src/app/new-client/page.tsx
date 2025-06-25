@@ -22,13 +22,14 @@ export default function NewClientPage() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/client', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name, url, cron })
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_NODE_API}/start-crawl`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, url })
+        }
+      );
 
       const data = await res.json();
 
