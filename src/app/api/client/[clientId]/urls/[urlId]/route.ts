@@ -5,9 +5,9 @@ const prisma = new PrismaClient();
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ clientId: string; urlId: string }> }
+  { params }: { params: Promise<{ clientId: string; urlId: string }> } // ✅ params as a Promise
 ) {
-  const { clientId, urlId } = await params;
+  const { clientId, urlId } = await params; // ✅ await is mandatory
 
   const clientIdInt = parseInt(clientId);
   const urlIdInt = parseInt(urlId);
@@ -33,6 +33,7 @@ export async function GET(
 
     return NextResponse.json(url);
   } catch (error) {
+    console.error('[GET /urls/[urlId]] Fetch failed:', error);
     return NextResponse.json({ error: 'Failed to fetch URL' }, { status: 500 });
   }
 }

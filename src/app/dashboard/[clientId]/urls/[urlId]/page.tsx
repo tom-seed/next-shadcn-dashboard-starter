@@ -1,3 +1,4 @@
+// src/app/dashboard/[clientId]/urls/[urlId]/page.tsx
 import { Suspense } from 'react';
 import PageContainer from '@/components/layout/page-container';
 import FormCardSkeleton from '@/components/form-card-skeleton';

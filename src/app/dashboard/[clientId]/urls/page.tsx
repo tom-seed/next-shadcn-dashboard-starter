@@ -10,11 +10,12 @@ export const metadata = {
 };
 
 interface PageProps {
-  params: Promise<{ clientId: string }>; // 👈 MUST be a Promise now!
+  params: Promise<{ clientId: string }>;
 }
 
 export default async function UrlsPage({ params }: PageProps) {
-  const { clientId } = await params; // 👈 MUST await here!
+  const { clientId } = await params;
+
   return (
     <PageContainer scrollable={false}>
       <div className='flex flex-1 flex-col space-y-4'>

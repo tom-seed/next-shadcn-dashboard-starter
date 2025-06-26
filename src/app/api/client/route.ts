@@ -7,8 +7,6 @@ const prisma = new PrismaClient();
 //   try {
 //     const { name, url } = await req.json();
 
-//     console.log('📨 Incoming client creation:', { name, url });
-
 //     const client = await prisma.client.create({ data: { name, url } });
 
 //     const crawl = await prisma.crawl.create({
@@ -44,8 +42,6 @@ const prisma = new PrismaClient();
 //      redirect_policy: 'loose'
 //    };
 
-// console.log('🌐 Creating Spider crawl with:', spiderPayload);
-
 //
 //     const spiderRes = await fetch('https://api.spider.cloud/crawl', {
 //       method: 'POST',
@@ -57,7 +53,6 @@ const prisma = new PrismaClient();
 //     });
 
 //    const spiderText = await spiderRes.text();
-//    console.log('🪲 Spider response:', spiderRes.status, spiderText);
 
 //    if (!spiderRes.ok) {
 //      return NextResponse.json(
@@ -87,7 +82,6 @@ export async function GET() {
     });
     return NextResponse.json(clients);
   } catch (err) {
-    console.error('❌ Error in GET /api/client:', err);
     return NextResponse.json(
       { error: 'Failed to load clients' },
       { status: 500 }

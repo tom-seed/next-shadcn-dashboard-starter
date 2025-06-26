@@ -30,21 +30,26 @@ export default function ClientOverviewPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!clientId) return; // 🚨 Don't try to fetch if clientId isn't defined
+
     async function fetchData() {
       try {
         const resClient = await fetch(`/api/client/${clientId}`);
         const resAudit = await fetch(`/api/client/${clientId}/audits/latest`);
+
         const clientData = await resClient.json();
         const { latest, previous } = await resAudit.json();
+
         setClient(clientData);
         setLatest(latest);
         setPrevious(previous);
       } catch (error) {
-        console.error('Error fetching client overview:', error);
+        console.error('Client Overview Fetch Error:', error);
       } finally {
         setLoading(false);
       }
     }
+
     fetchData();
   }, [clientId]);
 

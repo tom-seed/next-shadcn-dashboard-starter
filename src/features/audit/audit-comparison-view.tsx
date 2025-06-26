@@ -34,11 +34,13 @@ export default function AuditComparisonView({ clientId }: Props) {
   };
 
   return (
-    <div className='space-y-4'>
+    <div className='mx-auto w-full'>
       <h2 className='text-2xl font-bold'>Audit Summary</h2>
       <Accordion type='multiple' className='w-full'>
         <AccordionItem value='meta'>
-          <AccordionTrigger>Metadata</AccordionTrigger>
+          <AccordionTrigger className='text-xl font-medium'>
+            Metadata
+          </AccordionTrigger>
           <AccordionContent>
             <ul className='list-disc pl-5'>
               <li>

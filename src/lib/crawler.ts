@@ -49,16 +49,11 @@ export async function runCrawl(clientId: number, url: string): Promise<string> {
   const stats: Record<string, number> = {};
   let pageCount = 0;
 
-  //console.log(`🕷️ Starting crawl for: ${url}`);
-
   await spider.crawlUrl(url, crawlParams, true, async (page: any) => {
-    //console.log(`🧱 Page received from Spider:`, page);
     pageCount++;
-    //console.log(`🔍 Processing page #${pageCount}: ${page.url}`);
 
     const html = page.content || page.html;
     if (!html) {
-      console.warn(`⚠️ No HTML found for page: ${page.url}`);
       return;
     }
 
@@ -100,8 +95,6 @@ export async function runCrawl(clientId: number, url: string): Promise<string> {
       statusCode: page.status
     });
 
-    //console.log(`📄 Audit for ${page.url}:`, auditStats);
-
     for (const [key, val] of Object.entries(auditStats)) {
       stats[key] = (stats[key] || 0) + (typeof val === 'number' ? val : 0);
     }
@@ -127,9 +120,6 @@ export async function runCrawl(clientId: number, url: string): Promise<string> {
       }
     });
   });
-
-  //console.log(`✅ Finished crawl. Pages crawled: ${pageCount}`);
-  //console.log(`📊 Final stats:`, stats);
 
   await prisma.audit.create({
     data: {
