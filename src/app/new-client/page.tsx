@@ -41,7 +41,6 @@ export default function NewClientPage() {
       }
     } catch (err) {
       alert('An unexpected error occurred.');
-      console.error(err);
     } finally {
       setLoading(false);
     }

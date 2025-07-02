@@ -1,3 +1,4 @@
+// FILE: src/features/url-table/url-view-page.tsx
 import { getUrlById } from '@/lib/api/urls';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

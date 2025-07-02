@@ -1,7 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+// FILE: src/app/api/client/[clientId]/audits/latest/route.ts
 
-const prisma = new PrismaClient();
+import { NextRequest, NextResponse } from 'next/server';
+import type { Crawl, Audit } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
+
+const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(
   _req: NextRequest,
@@ -22,7 +26,9 @@ export async function GET(
       include: { audit: true }
     });
 
-    const [latest, previous] = latestCrawls;
+    const [latest, previous] = latestCrawls as Array<
+      Crawl & { audit: Audit | null }
+    >;
 
     if (!latest?.audit) {
       return NextResponse.json(

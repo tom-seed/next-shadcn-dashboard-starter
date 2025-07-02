@@ -49,7 +49,19 @@ function BreadcrumbLink({
   );
 }
 
-function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
+function BreadcrumbPage({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<'span'>) {
+  const formatted =
+    typeof children === 'string'
+      ? children
+          .replaceAll('-', ' ')
+          .replaceAll('_', ' ')
+          .replace(/\b\w/g, (l) => l.toUpperCase())
+      : children;
+
   return (
     <span
       data-slot='breadcrumb-page'
@@ -58,7 +70,9 @@ function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
       aria-current='page'
       className={cn('text-foreground font-normal', className)}
       {...props}
-    />
+    >
+      {formatted}
+    </span>
   );
 }
 

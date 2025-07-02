@@ -1,3 +1,5 @@
+// FILE: src/app/dashboard/[clientId]/overview/page.tsx
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,7 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BarGraph } from '@/features/overview/components/bar-graph';
-import { AreaGraph } from '@/features/overview/components/area-graph';
+import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
 import { PieGraph } from '@/features/overview/components/pie-graph';
 import { RecentSales } from '@/features/overview/components/recent-sales';
 import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
@@ -44,7 +46,6 @@ export default function ClientOverviewPage() {
         setLatest(latest);
         setPrevious(previous);
       } catch (error) {
-        console.error('Client Overview Fetch Error:', error);
       } finally {
         setLoading(false);
       }
@@ -183,7 +184,7 @@ export default function ClientOverviewPage() {
 
         <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
           <div className='col-span-4'>
-            <AreaGraph />
+            <AreaGraphStatusCodes />
           </div>
           <div className='col-span-3'>
             <PieGraph />

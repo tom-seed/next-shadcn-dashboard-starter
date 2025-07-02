@@ -1,3 +1,4 @@
+// FILE: src/features/audit/audit-comparison-view.tsx
 'use client';
 
 import {
@@ -7,6 +8,7 @@ import {
   AccordionTrigger
 } from '@/components/ui/accordion';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 type Props = {
   clientId: string;
@@ -56,8 +58,13 @@ export default function AuditComparisonView({ clientId }: Props) {
                 </span>
               </li>
               <li>
-                Too Long Title: {latest.too_long_title}{' '}
-                <span className='text-muted-foreground'>
+                <Link
+                  href={`/dashboard/${clientId}/audits/issues/too-long-title-urls`}
+                  className='text-blue-600 hover:underline dark:text-blue-400'
+                >
+                  Too Long Title: {latest.too_long_title}
+                </Link>
+                <span className='text-muted-foreground ml-2'>
                   {getDelta('too_long_title')}
                 </span>
               </li>

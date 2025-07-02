@@ -1,9 +1,10 @@
-// src/app/api/client/[clientId]/urls/route.ts
+// ✅ FILE: src/app/api/client/[clientId]/urls/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(
   req: NextRequest,
@@ -34,6 +35,35 @@ export async function GET(
   const urlFilter = searchParams.get('url') || '';
   const metaTitleFilter = searchParams.get('metaTitle') || '';
   const statusFilter = searchParams.get('status');
+
+  const ALLOWED_SORT_FIELDS = [
+    'url',
+    'metaTitle',
+    'status',
+    'createdAt'
+  ] as const;
+
+  let orderBy: Prisma.UrlsOrderByWithRelationInput[] = [];
+
+  const rawSorts = searchParams.getAll('sort'); // gets ALL values (especially useful when added via query.append)
+  try {
+    const orderByParsed = rawSorts.flatMap((entry) => {
+      try {
+        const parsed = JSON.parse(entry);
+        if (Array.isArray(parsed)) {
+          return parsed.flatMap(({ id, desc }) => {
+            if (ALLOWED_SORT_FIELDS.includes(id) && typeof desc === 'boolean') {
+              return [{ [id]: desc ? 'desc' : 'asc' }];
+            }
+            return [];
+          });
+        }
+      } catch (e) {}
+      return [];
+    });
+
+    orderBy = orderByParsed;
+  } catch (err) {}
 
   try {
     const filters: any[] = [];
@@ -80,9 +110,13 @@ export async function GET(
     const [urls, totalCount] = await Promise.all([
       prisma.urls.findMany({
         where: whereClause,
-        orderBy: { createdAt: 'desc' },
+        orderBy: orderBy.length > 0 ? orderBy : [{ createdAt: 'desc' }],
         skip,
-        take: perPage
+        take: perPage,
+        cacheStrategy: {
+          ttl: 30,
+          swr: 60
+        }
       }),
       prisma.urls.count({ where: whereClause })
     ]);
@@ -94,7 +128,6 @@ export async function GET(
       perPage
     });
   } catch (err) {
-    console.error('[ERROR] Failed to fetch URLs:', err);
     return NextResponse.json(
       { ...defaultResponse, error: 'Internal Server Error' },
       { status: 500 }

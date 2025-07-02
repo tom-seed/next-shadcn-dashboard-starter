@@ -1,3 +1,4 @@
+// FILE: src/features/overview/components/area-graph-skeleton.tsx
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 

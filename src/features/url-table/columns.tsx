@@ -1,8 +1,7 @@
-// ✅ FILE: src/features/url-table/columns.tsx
 'use client';
 
 import { UrlCellAction } from './cell-action';
-import { Column, ColumnDef } from '@tanstack/react-table';
+import { ColumnDef } from '@tanstack/react-table';
 import { Urls } from '@prisma/client';
 import { DataTableColumnHeader } from '@/components/ui/table/data-table-column-header';
 import { Text } from 'lucide-react';
@@ -25,9 +24,20 @@ export function getUrlColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='URL' />
       ),
-      cell: ({ cell }) => <span>{cell.getValue<string>() || 'N/A'}</span>,
+      cell: ({ cell }) => (
+        <span
+          className='block max-w-[400px] truncate'
+          title={cell.getValue<string>() || 'N/A'}
+        >
+          {cell.getValue<string>() || 'N/A'}
+        </span>
+      ),
       enableColumnFilter: true,
       enableSorting: true,
+      enableHiding: true,
+      enablePinning: true,
+      sortUndefined: 'last',
+      sortDescFirst: false,
       meta: {
         label: 'Search URL...',
         variant: 'text',
@@ -36,7 +46,7 @@ export function getUrlColumns(
     },
     {
       id: 'status',
-      accessorFn: (row): number | null => row.status,
+      accessorKey: 'status',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='Status' />
       ),
@@ -51,15 +61,47 @@ export function getUrlColumns(
     },
     {
       id: 'metaTitle',
-      accessorFn: (row): string | null => row.metaTitle,
+      accessorKey: 'metaTitle',
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='Meta Title' />
       ),
       cell: ({ cell }) => <span>{(cell.getValue() as string) || 'N/A'}</span>,
       enableColumnFilter: true,
       enableSorting: true,
+      enableResizing: true,
+      enableHiding: true,
+      enablePinning: true,
+      sortUndefined: 'last',
+      sortDescFirst: false,
       meta: {
         label: 'Search meta title...',
+        variant: 'text',
+        icon: Text
+      }
+    },
+    {
+      id: 'metaDescription',
+      accessorKey: 'metaDescription',
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title='Meta Description' />
+      ),
+      cell: ({ cell }) => (
+        <span
+          className='block max-w-[400px] truncate'
+          title={cell.getValue<string>() || 'N/A'}
+        >
+          {cell.getValue<string>() || 'N/A'}
+        </span>
+      ),
+      enableColumnFilter: true,
+      enableSorting: true,
+      enableResizing: true,
+      enableHiding: true,
+      enablePinning: true,
+      sortUndefined: 'last',
+      sortDescFirst: false,
+      meta: {
+        label: 'Search meta description...',
         variant: 'text',
         icon: Text
       }

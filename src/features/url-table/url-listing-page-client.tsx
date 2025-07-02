@@ -8,7 +8,7 @@ import {
   useQueryStates,
   parseAsInteger,
   parseAsString,
-  parseAsArrayOf
+  createParser
 } from 'nuqs';
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
@@ -17,13 +17,24 @@ import {
   Updater
 } from '@tanstack/react-table';
 
+// ✅ Custom parser using `createParser` to enable `withDefault`
+const parseSortParam = createParser<string[]>({
+  parse: (value): string[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') return [value];
+    return [];
+  },
+  serialize: (value: string[]): string => value.join(',') // Stored as comma-separated in URL
+});
+
+// ✅ Updated query param definitions
 const searchParamDefs = {
   page: parseAsInteger.withDefault(1),
   perPage: parseAsInteger.withDefault(10),
   url: parseAsString.withDefault(''),
   metaTitle: parseAsString.withDefault(''),
   status: parseAsString.withDefault(''),
-  sort: parseAsArrayOf(parseAsString).withDefault([])
+  sort: parseSortParam.withDefault([])
 };
 
 interface UrlListingPageClientProps {
@@ -43,15 +54,6 @@ export default function UrlListingPageClient({
   const fetchData = useDebouncedCallback(async () => {
     const { page, perPage, url, metaTitle, status, sort } = searchParams;
 
-    console.log('🔄 Fetching data with params:', {
-      page,
-      perPage,
-      url,
-      metaTitle,
-      status,
-      sort
-    });
-
     const query = new URLSearchParams({
       page: String(page),
       perPage: String(perPage),
@@ -60,16 +62,16 @@ export default function UrlListingPageClient({
       status
     });
 
-    sort.forEach((s) => {
+    sort.forEach((s: string) => {
       if (typeof s === 'string' && s.includes(':')) {
         query.append('sort', s);
       }
     });
 
-    const res = await fetch(
-      `/api/client/${clientId}/urls?${query.toString()}`,
-      { cache: 'no-store' }
-    );
+    const urlPath = `/api/client/${clientId}/urls?${query.toString()}`;
+    console.log('🌐 Fetching:', urlPath);
+
+    const res = await fetch(urlPath, { cache: 'no-store' });
 
     if (!res.ok) {
       console.error('❌ Failed to fetch URLs');
@@ -77,13 +79,11 @@ export default function UrlListingPageClient({
     }
 
     const data = await res.json();
-    console.log('✅ Fetched data:', data);
     setUrls(data.urls || []);
     setTotalItems(data.totalCount || 0);
   }, 300);
 
   useEffect(() => {
-    console.log('🚀 useEffect triggered — new searchParams:', searchParams);
     startTransition(() => {
       fetchData();
     });
@@ -105,17 +105,19 @@ export default function UrlListingPageClient({
       onSortingChange={(updater) => {
         const nextSort = resolveUpdater<SortingState>(updater, []);
         const sortParams = nextSort.map(
-          (s) => `${s.id}:${s.desc ? 'desc' : 'asc'}`
+          (s): string => `${s.id}:${s.desc ? 'desc' : 'asc'}`
         );
-        console.log('🧭 Sorting changed:', sortParams);
-        setSearchParams((prev) => ({ ...prev, sort: sortParams }));
+        setSearchParams((prev) => ({
+          ...prev,
+          sort: sortParams,
+          page: 1
+        }));
       }}
       onColumnFiltersChange={(updater) => {
         const nextFilters = resolveUpdater<ColumnFiltersState>(updater, []);
         const filterMap = Object.fromEntries(
           nextFilters.map((f) => [f.id, f.value])
         );
-        console.log('🧹 Column filters changed:', filterMap);
         setSearchParams((prev) => ({
           ...prev,
           ...filterMap,

@@ -38,6 +38,8 @@ export function DataTable<TData>({
                         key={header.id}
                         colSpan={header.colSpan}
                         style={{
+                          width: header.getSize(),
+                          position: 'relative',
                           ...getCommonPinningStyles({ column: header.column })
                         }}
                       >
@@ -47,6 +49,16 @@ export function DataTable<TData>({
                               header.column.columnDef.header,
                               header.getContext()
                             )}
+
+                        {header.column.getCanResize() && (
+                          <div
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            className={`absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize touch-none bg-transparent select-none ${
+                              header.column.getIsResizing() ? 'bg-muted' : ''
+                            }`}
+                          />
+                        )}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -63,6 +75,7 @@ export function DataTable<TData>({
                         <TableCell
                           key={cell.id}
                           style={{
+                            width: cell.column.getSize(),
                             ...getCommonPinningStyles({ column: cell.column })
                           }}
                         >

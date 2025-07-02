@@ -1,4 +1,3 @@
-// FILE: src/features/url-table/table.tsx
 'use client';
 
 import {
@@ -13,9 +12,10 @@ import { parseAsInteger, useQueryState } from 'nuqs';
 import { useDataTable } from '@/hooks/use-data-table';
 import { DataTable } from '@/components/ui/table/data-table';
 import { DataTableToolbar } from '@/components/ui/table/data-table-toolbar';
-import { useState, useReducer } from 'react';
+import { useState } from 'react';
+import { getAuditIssueColumns } from './columns';
 
-interface UrlTableProps<TData, TValue> {
+interface AuditTableProps<TData, TValue> {
   data: TData[];
   totalItems: number;
   columns: ColumnDef<TData, TValue>[];
@@ -25,7 +25,7 @@ interface UrlTableProps<TData, TValue> {
   onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
 }
 
-export function UrlTable<TData, TValue>({
+export function AuditIssueTable<TData, TValue>({
   data,
   totalItems,
   columns,
@@ -33,7 +33,7 @@ export function UrlTable<TData, TValue>({
   initialPerPage,
   onSortingChange,
   onColumnFiltersChange
-}: UrlTableProps<TData, TValue>) {
+}: AuditTableProps<TData, TValue>) {
   const [perPage] = useQueryState(
     'perPage',
     parseAsInteger.withDefault(initialPerPage)
@@ -43,12 +43,8 @@ export function UrlTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] = useState({});
   const [columnSizing, setColumnSizing] = useState({});
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const [columnResizeMode, setColumnResizeMode] =
-    useState<ColumnResizeMode>('onChange');
-  const [columnResizeDirection, setColumnResizeDirection] =
-    useState<ColumnResizeDirection>('ltr');
-
-  const rerender = useReducer(() => ({}), {})[1];
+  const [columnResizeMode] = useState<ColumnResizeMode>('onChange');
+  const [columnResizeDirection] = useState<ColumnResizeDirection>('ltr');
 
   const { table } = useDataTable({
     data,

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(
   _req: NextRequest,
@@ -16,7 +17,8 @@ export async function GET(
 
   const audit = await prisma.audit.findFirst({
     where: { clientId: id },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    cacheStrategy: { ttl: 30, swr: 60 }
   });
 
   if (!audit) {

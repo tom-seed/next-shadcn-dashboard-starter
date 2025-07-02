@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { withAccelerate } from '@prisma/extension-accelerate';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(
   _req: NextRequest,
@@ -24,6 +25,10 @@ export async function GET(
       where: {
         id: urlIdInt,
         clientId: clientIdInt
+      },
+      cacheStrategy: {
+        ttl: 30,
+        swr: 60
       }
     });
 
