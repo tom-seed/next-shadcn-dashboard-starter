@@ -1,9 +1,7 @@
-// FILE: src/app/dashboard/[clientId]/overview/page.tsx
-
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Card,
   CardDescription,
@@ -13,7 +11,6 @@ import {
   CardAction
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { BarGraph } from '@/features/overview/components/bar-graph';
 import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
 import { PieGraph } from '@/features/overview/components/pie-graph';
@@ -21,37 +18,85 @@ import { RecentSales } from '@/features/overview/components/recent-sales';
 import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { getTrend } from '@/lib/helpers/getTrend';
+import { CrawlLoadingSpinner } from '@/components/ui/crawl-loading-spinner';
 
 export default function ClientOverviewPage() {
   const { clientId } = useParams();
+  const router = useRouter();
   const [client, setClient] = useState<{ id: number; name: string } | null>(
     null
   );
   const [latest, setLatest] = useState<any>(null);
   const [previous, setPrevious] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!clientId) return; // 🚨 Don't try to fetch if clientId isn't defined
+    if (!clientId) return;
 
-    async function fetchData() {
+    let isCancelled = false;
+    let eventSource: EventSource;
+
+    const fetchClient = async () => {
       try {
-        const resClient = await fetch(`/api/client/${clientId}`);
-        const resAudit = await fetch(`/api/client/${clientId}/audits/latest`);
-
-        const clientData = await resClient.json();
-        const { latest, previous } = await resAudit.json();
-
-        setClient(clientData);
-        setLatest(latest);
-        setPrevious(previous);
-      } catch (error) {
-      } finally {
-        setLoading(false);
+        const res = await fetch(`/api/client/${clientId}`);
+        const clientData = await res.json();
+        if (!isCancelled) setClient(clientData);
+      } catch {
+        console.warn('Failed to fetch client');
       }
-    }
+    };
 
-    fetchData();
+    const checkLatestAudit = async () => {
+      try {
+        const res = await fetch(`/api/client/${clientId}/audits/latest`);
+        if (res.ok) {
+          const { latest, previous } = await res.json();
+          if (!isCancelled && latest) {
+            setLatest(latest);
+            setPrevious(previous);
+            return true; // ✅ Already have audit
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return false;
+    };
+
+    const listenForAudit = () => {
+      eventSource = new EventSource(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/sse/events?clientId=${clientId}`
+      );
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'audit_complete') {
+            setLatest(data.latest);
+            setPrevious(data.previous);
+            eventSource.close();
+          }
+        } catch (err) {
+          console.error('Failed to parse SSE event', err);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.error('SSE error:', err);
+        eventSource.close();
+      };
+    };
+
+    fetchClient();
+    checkLatestAudit().then((hasAudit) => {
+      if (!hasAudit && !isCancelled) {
+        listenForAudit();
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      if (eventSource) eventSource.close();
+    };
   }, [clientId]);
 
   const getTrendInfo = (metric: string) => {
@@ -90,113 +135,101 @@ export default function ClientOverviewPage() {
 
   return (
     <PageContainer>
-      <div className='flex flex-1 flex-col space-y-2'>
-        <div>
-          <h1 className='text-2xl font-bold'>
-            {loading ? (
-              <Skeleton className='h-6 w-48' />
-            ) : (
-              `${client?.name} Overview`
-            )}
-          </h1>
+      {!latest ? (
+        <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>
+          <CrawlLoadingSpinner />
         </div>
+      ) : (
+        <div className='flex flex-1 flex-col space-y-2'>
+          <div>
+            <h1 className='text-2xl font-bold'>{`${client?.name} Overview`}</h1>
+          </div>
 
-        <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
-          <Card className='@container/card'>
-            <CardHeader>
-              <CardDescription>Pages Crawled</CardDescription>
-              <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                {loading ? (
-                  <Skeleton className='h-8 w-24' />
-                ) : (
-                  latest?.pages_200_response || 0
-                )}
-              </CardTitle>
-              <CardAction>{!loading && trend200}</CardAction>
-            </CardHeader>
-            <CardFooter className='flex-col items-start gap-1.5 text-sm'>
-              <div className='line-clamp-1 flex gap-2 font-medium'>
-                {dir200 === 'up'
-                  ? 'Trending up'
-                  : dir200 === 'down'
-                    ? 'Trending down'
-                    : 'No change'}
-              </div>
-              <div className='text-muted-foreground'>
-                Successful pages (200 OK)
-              </div>
-            </CardFooter>
-          </Card>
-
-          <Card className='@container/card'>
-            <CardHeader>
-              <CardDescription>4xx Error Codes</CardDescription>
-              <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                {loading ? (
-                  <Skeleton className='h-8 w-24' />
-                ) : (
-                  latest?.pages_4xx_response || 0
-                )}
-              </CardTitle>
-              <CardAction>{!loading && trend4xx}</CardAction>
-            </CardHeader>
-            <CardFooter className='flex-col items-start gap-1.5 text-sm'>
-              <div className='line-clamp-1 flex gap-2 font-medium'>
-                {dir4xx === 'up'
-                  ? 'Trending up'
-                  : dir4xx === 'down'
-                    ? 'Trending down'
-                    : 'No change'}
-              </div>
-              <div className='text-muted-foreground'>Error pages (4xx)</div>
-            </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardDescription>Missing Titles</CardDescription>
-              <CardTitle className='text-3xl'>
-                {loading ? (
-                  <Skeleton className='h-8 w-24' />
-                ) : (
-                  latest?.pages_missing_title || 0
-                )}
-              </CardTitle>
-              <CardFooter className='text-muted-foreground text-sm'>
-                SEO checks
+          <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
+            <Card className='@container/card'>
+              <CardHeader>
+                <CardDescription>Pages Crawled</CardDescription>
+                <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
+                  {latest?.pages_200_response || 0}
+                </CardTitle>
+                <CardAction>{trend200}</CardAction>
+              </CardHeader>
+              <CardFooter className='flex-col items-start gap-1.5 text-sm'>
+                <div className='line-clamp-1 flex gap-2 font-medium'>
+                  {dir200 === 'up'
+                    ? 'Trending up'
+                    : dir200 === 'down'
+                      ? 'Trending down'
+                      : 'No change'}
+                </div>
+                <div className='text-muted-foreground'>
+                  Successful pages (200 OK)
+                </div>
               </CardFooter>
-            </CardHeader>
-          </Card>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardDescription>Audit Trend</CardDescription>
-              <CardTitle className='flex items-center gap-2 text-3xl'>
-                <IconTrendingUp className='h-6 w-6 text-green-500' />
-                +5%
-              </CardTitle>
-              <CardFooter className='text-muted-foreground text-sm'>
-                From previous audit
+            <Card className='@container/card'>
+              <CardHeader>
+                <CardDescription>4xx Error Codes</CardDescription>
+                <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
+                  {latest?.pages_4xx_response || 0}
+                </CardTitle>
+                <CardAction>{trend4xx}</CardAction>
+              </CardHeader>
+              <CardFooter className='flex-col items-start gap-1.5 text-sm'>
+                <div className='line-clamp-1 flex gap-2 font-medium'>
+                  {dir4xx === 'up'
+                    ? 'Trending up'
+                    : dir4xx === 'down'
+                      ? 'Trending down'
+                      : 'No change'}
+                </div>
+                <div className='text-muted-foreground'>Error pages (4xx)</div>
               </CardFooter>
-            </CardHeader>
-          </Card>
-        </div>
+            </Card>
 
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
-          <div className='col-span-4'>
-            <AreaGraphStatusCodes />
+            <Card>
+              <CardHeader>
+                <CardDescription>Missing Titles</CardDescription>
+                <CardTitle className='text-3xl'>
+                  {latest?.pages_missing_title || 0}
+                </CardTitle>
+                <CardFooter className='text-muted-foreground text-sm'>
+                  SEO checks
+                </CardFooter>
+              </CardHeader>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardDescription>Audit Trend</CardDescription>
+                <CardTitle className='flex items-center gap-2 text-3xl'>
+                  <IconTrendingUp className='h-6 w-6 text-green-500' />
+                  +5%
+                </CardTitle>
+                <CardFooter className='text-muted-foreground text-sm'>
+                  From previous audit
+                </CardFooter>
+              </CardHeader>
+            </Card>
           </div>
-          <div className='col-span-3'>
-            <PieGraph />
-          </div>
-          <div className='col-span-4'>
-            <BarGraph />
-          </div>
-          <div className='col-span-3'>
-            <RecentSales />
+
+          <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
+            <div className='col-span-4'>
+              <AreaGraphStatusCodes />
+            </div>
+            <div className='col-span-3'>
+              <PieGraph />
+            </div>
+            <div className='col-span-4'>
+              <BarGraph />
+            </div>
+            <div className='col-span-3'>
+              <RecentSales />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </PageContainer>
   );
 }

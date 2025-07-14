@@ -28,8 +28,8 @@ export async function GET(
         pages_5xx_response: true
       },
       cacheStrategy: {
-        ttl: 30,
-        swr: 60
+        ttl: 3600 * 24,
+        swr: 3600 * 24 * 3
       }
     });
 

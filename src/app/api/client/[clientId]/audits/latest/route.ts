@@ -1,17 +1,17 @@
 // FILE: src/app/api/client/[clientId]/audits/latest/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import type { Crawl, Audit } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
+import type { Crawl, Audit } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
 
 const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ clientId: string }> }
+  ctx: { params: Promise<{ clientId: string }> }
 ) {
-  const { clientId } = await params;
+  const { clientId } = await ctx.params;
   const id = parseInt(clientId);
 
   if (isNaN(id)) {
@@ -23,7 +23,11 @@ export async function GET(
       where: { clientId: id },
       orderBy: { createdAt: 'desc' },
       take: 2,
-      include: { audit: true }
+      include: { audit: true },
+      cacheStrategy: {
+        ttl: 3600 * 24,
+        swr: 3600 * 24 * 3
+      }
     });
 
     const [latest, previous] = latestCrawls as Array<

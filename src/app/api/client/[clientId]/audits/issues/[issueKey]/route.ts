@@ -38,7 +38,7 @@ export async function GET(
     const audit = await prisma.audit.findFirst({
       where: { clientId: id },
       orderBy: { createdAt: 'desc' },
-      cacheStrategy: { ttl: 30, swr: 60 }
+      cacheStrategy: { ttl: 3600 * 24, swr: 3600 * 24 * 3 }
     });
 
     if (!audit) {

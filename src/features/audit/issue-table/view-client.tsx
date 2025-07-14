@@ -15,7 +15,36 @@ import {
   SortingState,
   ColumnFiltersState
 } from '@tanstack/react-table';
-import TitleIssueDescription from '../issue-descriptions/titles';
+import {
+  TitlesTooLong,
+  TitlesTooShort,
+  TitlesMissing
+} from '../issue-descriptions/titles';
+import {
+  DescriptionsTooLong,
+  DescriptionsTooShort,
+  DescriptionsMissing
+} from '../issue-descriptions/descriptions';
+import {
+  Heading1Missing,
+  Heading2Missing,
+  Heading3Missing,
+  Heading4Missing,
+  Heading5Missing,
+  Heading6Missing,
+  Heading1Multiple,
+  Heading2Multiple,
+  Heading3Multiple,
+  Heading4Multiple,
+  Heading5Multiple,
+  Heading6Multiple,
+  Heading1Duplicate,
+  Heading2Duplicate,
+  Heading3Duplicate,
+  Heading4Duplicate,
+  Heading5Duplicate,
+  Heading6Duplicate
+} from '../issue-descriptions/headings';
 
 const parseSortParam = createParser<string[]>({
   parse: (value): string[] => {
@@ -95,7 +124,31 @@ export default function AuditIssueViewClient({
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ')}
       </h1>
-      <TitleIssueDescription />
+      {issueKey === 'too_long_title_urls' && <TitlesTooLong />}
+      {issueKey === 'too_short_title_urls' && <TitlesTooShort />}
+      {issueKey === 'pages_missing_title_urls' && <TitlesMissing />}
+      {issueKey === 'too_long_description_urls' && <DescriptionsTooLong />}
+      {issueKey === 'too_short_description_urls' && <DescriptionsTooShort />}
+      {issueKey === 'pages_missing_description_urls' && <DescriptionsMissing />}
+      {issueKey === 'pages_missing_h1_urls' && <Heading1Missing />}
+      {issueKey === 'pages_missing_h2_urls' && <Heading2Missing />}
+      {issueKey === 'pages_missing_h3_urls' && <Heading3Missing />}
+      {issueKey === 'pages_missing_h4_urls' && <Heading4Missing />}
+      {issueKey === 'pages_missing_h5_urls' && <Heading5Missing />}
+      {issueKey === 'pages_missing_h6_urls' && <Heading6Missing />}
+      {issueKey === 'pages_with_multiple_h1s_urls' && <Heading1Multiple />}
+      {issueKey === 'pages_with_multiple_h2s_urls' && <Heading2Multiple />}
+      {issueKey === 'pages_with_multiple_h3s_urls' && <Heading3Multiple />}
+      {issueKey === 'pages_with_multiple_h4s_urls' && <Heading4Multiple />}
+      {issueKey === 'pages_with_multiple_h5s_urls' && <Heading5Multiple />}
+      {issueKey === 'pages_with_multiple_h6s_urls' && <Heading6Multiple />}
+      {issueKey === 'pages_with_duplicate_h1s_urls' && <Heading1Duplicate />}
+      {issueKey === 'pages_with_duplicate_h2s_urls' && <Heading2Duplicate />}
+      {issueKey === 'pages_with_duplicate_h3s_urls' && <Heading3Duplicate />}
+      {issueKey === 'pages_with_duplicate_h4s_urls' && <Heading4Duplicate />}
+      {issueKey === 'pages_with_duplicate_h5s_urls' && <Heading5Duplicate />}
+      {issueKey === 'pages_with_duplicate_h6s_urls' && <Heading6Duplicate />}
+
       <AuditIssueTable
         data={data}
         totalItems={totalItems}

@@ -16,7 +16,10 @@ export async function GET(
     return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
   }
 
-  const client = await prisma.client.findUnique({ where: { id } });
+  const client = await prisma.client.findUnique({
+    where: { id },
+    cacheStrategy: { ttl: 3600 * 24, swr: 3600 * 24 * 3 }
+  });
 
   if (!client) {
     return NextResponse.json({ error: 'Client not found' }, { status: 404 });

@@ -97,12 +97,6 @@ export default function AppSidebar() {
         url: `${base}/audits`,
         icon: 'devicesCheck',
         items: []
-      },
-      {
-        title: 'Kanban',
-        url: `${base}/kanban`,
-        icon: 'kanban',
-        items: []
       }
     ];
   }, [activeClient]);
