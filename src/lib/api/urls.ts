@@ -111,26 +111,42 @@ export async function getUrls(
 export async function getUrlById(
   clientId: string,
   urlId: string
-): Promise<Urls> {
+): Promise<Partial<Urls> | null> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const url = `${baseUrl}/api/client/${clientId}/urls/${urlId}`;
 
-  const res = await fetch(`${baseUrl}/api/client/${clientId}/urls/${urlId}`, {
-    headers: {
-      'x-client-id': clientId,
-      'Content-Type': 'application/json'
-    },
-    cache: 'no-store'
-  });
+  console.log('[getUrlById] Fetching:', url);
 
-  if (!res.ok) {
-    const errorData = await res
-      .json()
-      .catch(() => ({ message: 'Unknown error' }));
-    console.error('API Fetch Error (single URL):', errorData);
-    throw new Error(
-      `Failed to fetch URL by ID: ${errorData.error || res.statusText}`
-    );
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'x-client-id': clientId,
+        'Content-Type': 'application/json'
+      },
+      cache: 'no-store'
+    });
+
+    const data = await res.json().catch((err) => {
+      console.error('[getUrlById] Failed to parse JSON:', err);
+      throw new Error('Invalid JSON response');
+    });
+
+    if (res.status === 404 || !data) {
+      console.warn('[getUrlById] URL not found or empty response');
+      return null;
+    }
+
+    if (!res.ok) {
+      console.error('[getUrlById] API error response:', data);
+      throw new Error(
+        `Failed to fetch URL by ID: ${data.error || res.statusText}`
+      );
+    }
+
+    console.log('[getUrlById] Success:', data);
+    return data;
+  } catch (err: any) {
+    console.error('[getUrlById] Threw error:', err.message);
+    throw err;
   }
-
-  return res.json();
 }

@@ -6,11 +6,11 @@ import { withAccelerate } from '@prisma/extension-accelerate';
 
 const prisma = new PrismaClient().$extends(withAccelerate());
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ clientId: string }> }
-) {
-  const { clientId } = await params;
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const pathParts = url.pathname.split('/');
+  const clientId = pathParts[pathParts.indexOf('client') + 1];
+
   const id = parseInt(clientId);
   if (isNaN(id)) {
     return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
@@ -28,13 +28,13 @@ export async function GET(
         pages_5xx_response: true
       },
       cacheStrategy: {
-        ttl: 3600 * 24,
-        swr: 3600 * 24 * 3
+        ttl: 0,
+        swr: 60
       }
     });
 
     const trendData = audits.map((audit) => ({
-      date: audit.createdAt.toISOString().split('T')[0], // Format: YYYY-MM-DD
+      date: audit.createdAt.toISOString().split('T')[0],
       '2xx': audit.pages_200_response,
       '3xx': audit.pages_3xx_response,
       '4xx': audit.pages_4xx_response,

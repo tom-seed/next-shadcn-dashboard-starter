@@ -1,4 +1,3 @@
-// src/app/api/client/[clientId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
@@ -18,6 +17,11 @@ export async function GET(
 
   const client = await prisma.client.findUnique({
     where: { id },
+    select: {
+      id: true,
+      name: true,
+      url: true // ✅ This line is critical
+    },
     cacheStrategy: { ttl: 3600 * 24, swr: 3600 * 24 * 3 }
   });
 

@@ -39,7 +39,7 @@ export function getUrlColumns(
       sortUndefined: 'last',
       sortDescFirst: false,
       meta: {
-        label: 'Search URL...',
+        label: 'URL',
         variant: 'text',
         icon: Text
       }
@@ -74,7 +74,7 @@ export function getUrlColumns(
       sortUndefined: 'last',
       sortDescFirst: false,
       meta: {
-        label: 'Search meta title...',
+        label: 'Meta Title',
         variant: 'text',
         icon: Text
       }
@@ -101,7 +101,7 @@ export function getUrlColumns(
       sortUndefined: 'last',
       sortDescFirst: false,
       meta: {
-        label: 'Search meta description...',
+        label: 'Meta Description',
         variant: 'text',
         icon: Text
       }

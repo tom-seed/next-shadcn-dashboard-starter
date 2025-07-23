@@ -1,5 +1,4 @@
-// FILE: src/app/dashboard/[clientId]/urls/page.tsx
-
+import { PrismaClient } from '@prisma/client';
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
@@ -17,6 +16,13 @@ interface PageProps {
 
 export default async function UrlsPage({ params }: PageProps) {
   const { clientId } = await params;
+  const prisma = new PrismaClient();
+
+  const latestCrawl = await prisma.crawl.findFirst({
+    where: { clientId: parseInt(clientId) },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true }
+  });
 
   return (
     <PageContainer scrollable={false}>
@@ -31,7 +37,10 @@ export default async function UrlsPage({ params }: PageProps) {
         <Suspense
           fallback={<DataTableSkeleton columnCount={3} rowCount={10} />}
         >
-          <UrlListingPage clientId={clientId} />
+          <UrlListingPage
+            clientId={clientId}
+            crawlId={latestCrawl?.id} // ✅ Pass crawlId here
+          />
         </Suspense>
       </div>
     </PageContainer>

@@ -3,10 +3,14 @@ import UrlListingPageClient from './url-listing-page-client';
 
 interface UrlListingPageProps {
   clientId: string;
+  crawlId?: number;
 }
 
 export default async function UrlListingPage({
-  clientId
+  clientId,
+  crawlId
 }: UrlListingPageProps) {
-  return <UrlListingPageClient clientId={parseInt(clientId)} />;
+  return (
+    <UrlListingPageClient clientId={parseInt(clientId)} crawlId={crawlId} />
+  );
 }

@@ -25,8 +25,8 @@ export async function GET(
       take: 2,
       include: { audit: true },
       cacheStrategy: {
-        ttl: 3600 * 24,
-        swr: 3600 * 24 * 3
+        ttl: 0,
+        swr: 60
       }
     });
 

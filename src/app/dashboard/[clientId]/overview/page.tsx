@@ -19,13 +19,22 @@ import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { getTrend } from '@/lib/helpers/getTrend';
 import { CrawlLoadingSpinner } from '@/components/ui/crawl-loading-spinner';
+import ReCrawlButton from '@/features/overview/components/re-crawl-button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
 
 export default function ClientOverviewPage() {
   const { clientId } = useParams();
   const router = useRouter();
-  const [client, setClient] = useState<{ id: number; name: string } | null>(
-    null
-  );
+  const [client, setClient] = useState<{
+    id: number;
+    name: string;
+    url: string;
+  } | null>(null);
   const [latest, setLatest] = useState<any>(null);
   const [previous, setPrevious] = useState<any>(null);
 
@@ -64,7 +73,7 @@ export default function ClientOverviewPage() {
 
     const listenForAudit = () => {
       eventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/sse/events?clientId=${clientId}`
+        `${process.env.NEXT_PUBLIC_NODE_API}/sse/events?clientId=${clientId}`
       );
 
       eventSource.onmessage = (event) => {
@@ -99,39 +108,68 @@ export default function ClientOverviewPage() {
     };
   }, [clientId]);
 
-  const getTrendInfo = (metric: string) => {
+  const getTrendInfo = (
+    metric: string,
+    reverse = false,
+    tooltipMessage?: string
+  ) => {
     const value = latest?.[metric] ?? 0;
     const prev = previous?.[metric] ?? 0;
     const { delta, direction } = getTrend(value, prev);
 
-    const badge =
-      direction !== 'neutral' ? (
-        <Badge
-          variant='outline'
-          className={
-            direction === 'up'
-              ? 'text-green-600'
-              : direction === 'down'
-                ? 'text-red-600'
-                : ''
-          }
-        >
-          {direction === 'up' ? (
-            <IconTrendingUp className='mr-1 h-4 w-4' />
-          ) : (
-            <IconTrendingDown className='mr-1 h-4 w-4' />
-          )}
-          {delta > 0 ? `+${delta}%` : `${delta}%`}
-        </Badge>
-      ) : null;
+    const realDirection = reverse
+      ? direction === 'up'
+        ? 'down'
+        : direction === 'down'
+          ? 'up'
+          : 'neutral'
+      : direction;
 
-    return { badge, direction };
+    const badgeContent = realDirection !== 'neutral' && (
+      <Badge
+        variant='outline'
+        className={
+          realDirection === 'up'
+            ? 'text-green-600'
+            : realDirection === 'down'
+              ? 'text-red-600'
+              : ''
+        }
+      >
+        {realDirection === 'up' ? (
+          <IconTrendingUp className='mr-1 h-4 w-4' />
+        ) : (
+          <IconTrendingDown className='mr-1 h-4 w-4' />
+        )}
+        {delta > 0 ? `+${delta}%` : `${delta}%`}
+      </Badge>
+    );
+
+    const badge = tooltipMessage ? (
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>{badgeContent}</TooltipTrigger>
+          <TooltipContent>{tooltipMessage}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ) : (
+      badgeContent
+    );
+
+    return { badge, direction: realDirection };
   };
 
   const { badge: trend200, direction: dir200 } =
     getTrendInfo('pages_200_response');
-  const { badge: trend4xx, direction: dir4xx } =
-    getTrendInfo('pages_4xx_response');
+  const { badge: trend3xx, direction: dir3xx } = getTrendInfo(
+    'pages_3xx_response',
+    true,
+    'Increase in 3xx redirects may indicate redirect chains or misconfigurations.'
+  );
+  const { badge: trend4xx, direction: dir4xx } = getTrendInfo(
+    'pages_4xx_response',
+    true
+  );
 
   return (
     <PageContainer>
@@ -141,8 +179,11 @@ export default function ClientOverviewPage() {
         </div>
       ) : (
         <div className='flex flex-1 flex-col space-y-2'>
-          <div>
+          <div className='flex items-center justify-between'>
             <h1 className='text-2xl font-bold'>{`${client?.name} Overview`}</h1>
+            {client && (
+              <ReCrawlButton clientId={String(client.id)} url={client.url} />
+            )}
           </div>
 
           <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
@@ -170,6 +211,26 @@ export default function ClientOverviewPage() {
 
             <Card className='@container/card'>
               <CardHeader>
+                <CardDescription>3xx Error Codes</CardDescription>
+                <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
+                  {latest?.pages_3xx_response || 0}
+                </CardTitle>
+                <CardAction>{trend3xx}</CardAction>
+              </CardHeader>
+              <CardFooter className='flex-col items-start gap-1.5 text-sm'>
+                <div className='line-clamp-1 flex gap-2 font-medium'>
+                  {dir3xx === 'up'
+                    ? 'Trending up'
+                    : dir3xx === 'down'
+                      ? 'Trending down'
+                      : 'No change'}
+                </div>
+                <div className='text-muted-foreground'>Error pages (3xx)</div>
+              </CardFooter>
+            </Card>
+
+            <Card className='@container/card'>
+              <CardHeader>
                 <CardDescription>4xx Error Codes</CardDescription>
                 <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
                   {latest?.pages_4xx_response || 0}
@@ -186,18 +247,6 @@ export default function ClientOverviewPage() {
                 </div>
                 <div className='text-muted-foreground'>Error pages (4xx)</div>
               </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardDescription>Missing Titles</CardDescription>
-                <CardTitle className='text-3xl'>
-                  {latest?.pages_missing_title || 0}
-                </CardTitle>
-                <CardFooter className='text-muted-foreground text-sm'>
-                  SEO checks
-                </CardFooter>
-              </CardHeader>
             </Card>
 
             <Card>

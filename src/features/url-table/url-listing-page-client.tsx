@@ -39,10 +39,12 @@ const searchParamDefs = {
 
 interface UrlListingPageClientProps {
   clientId: number;
+  crawlId?: number;
 }
 
 export default function UrlListingPageClient({
-  clientId
+  clientId,
+  crawlId
 }: UrlListingPageClientProps) {
   const columns = getUrlColumns(clientId);
   const [urls, setUrls] = useState<Urls[]>([]);
@@ -68,7 +70,7 @@ export default function UrlListingPageClient({
       }
     });
 
-    const urlPath = `/api/client/${clientId}/urls?${query.toString()}`;
+    const urlPath = `/api/client/${clientId}/urls?${query.toString()}${crawlId ? `&crawlId=${crawlId}` : ''}`;
     console.log('🌐 Fetching:', urlPath);
 
     const res = await fetch(urlPath, { cache: 'no-store' });

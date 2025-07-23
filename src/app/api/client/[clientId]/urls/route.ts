@@ -35,6 +35,8 @@ export async function GET(
   const urlFilter = searchParams.get('url') || '';
   const metaTitleFilter = searchParams.get('metaTitle') || '';
   const statusFilter = searchParams.get('status');
+  const crawlIdParam = searchParams.get('crawlId');
+  const crawlId = crawlIdParam ? parseInt(crawlIdParam) : null;
 
   const ALLOWED_SORT_FIELDS = [
     'url',
@@ -45,7 +47,7 @@ export async function GET(
 
   let orderBy: Prisma.UrlsOrderByWithRelationInput[] = [];
 
-  const rawSorts = searchParams.getAll('sort'); // gets ALL values (especially useful when added via query.append)
+  const rawSorts = searchParams.getAll('sort');
   try {
     const orderByParsed = rawSorts.flatMap((entry) => {
       try {
@@ -102,8 +104,9 @@ export async function GET(
       }
     }
 
-    const whereClause = {
+    const whereClause: Prisma.UrlsWhereInput = {
       clientId: id,
+      ...(crawlId ? { crawlId } : {}),
       ...(filters.length > 0 ? { AND: filters } : {})
     };
 

@@ -13,8 +13,7 @@ interface PageProps {
 }
 
 export default async function Page({ params }: PageProps) {
-  const { clientId } = await params;
-  const { urlId } = await params;
+  const { clientId, urlId } = await params;
   return (
     <PageContainer scrollable>
       <div className='flex-1 space-y-4'>
