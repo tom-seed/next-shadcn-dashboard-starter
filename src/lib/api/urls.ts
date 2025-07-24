@@ -108,13 +108,39 @@ export async function getUrls(
  * @param urlId The ID of the URL to fetch.
  * @returns A promise that resolves to the URL details.
  */
+
+interface InternalLinkDetail {
+  id: number;
+  status: number | null;
+  targetUrl: string;
+  target: {
+    id: number;
+    url: string;
+    status: number | null;
+  } | null;
+}
+
+interface ReferrerLinkDetail {
+  id: number;
+  status: number | null;
+  source: {
+    id: number;
+    url: string;
+    status: number | null;
+  };
+}
+
+interface ExtendedUrl extends Urls {
+  outgoingLinks: InternalLinkDetail[];
+  linkedFrom: ReferrerLinkDetail[];
+}
+
 export async function getUrlById(
   clientId: string,
   urlId: string
-): Promise<Partial<Urls> | null> {
+): Promise<ExtendedUrl | null> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const url = `${baseUrl}/api/client/${clientId}/urls/${urlId}`;
-
   console.log('[getUrlById] Fetching:', url);
 
   try {

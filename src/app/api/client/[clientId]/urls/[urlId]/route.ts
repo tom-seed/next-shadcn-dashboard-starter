@@ -23,11 +23,8 @@ export async function GET(
   }
 
   try {
-    const url = await prisma.urls.findFirst({
-      where: {
-        id: urlIdInt,
-        clientId: clientIdInt
-      },
+    const url = await prisma.urls.findUnique({
+      where: { id: urlIdInt, clientId: clientIdInt },
       select: {
         id: true,
         url: true,
@@ -35,16 +32,34 @@ export async function GET(
         metaTitle: true,
         metaDescription: true,
         h1: true,
+        h2: true,
+        h3: true,
+        h4: true,
+        h5: true,
+        h6: true,
+        issues: true,
         internalLinks: true,
         externalLinks: true,
 
-        // ✅ Include internal link details (as source links from this URL)
         sourceLinks: {
           select: {
             id: true,
             targetUrl: true,
             status: true,
             target: {
+              select: {
+                id: true,
+                url: true,
+                status: true
+              }
+            }
+          }
+        },
+        targetLinks: {
+          select: {
+            id: true,
+            status: true,
+            source: {
               select: {
                 id: true,
                 url: true,
@@ -64,14 +79,7 @@ export async function GET(
       return NextResponse.json({ error: 'URL not found' }, { status: 404 });
     }
 
-    // ✅ Rename for clarity on frontend (optional)
-    const { sourceLinks, ...rest } = url;
-    const response = {
-      ...rest,
-      internalLinkDetails: sourceLinks // renamed for frontend consumption
-    };
-
-    return NextResponse.json(response);
+    return NextResponse.json(url);
   } catch (error: unknown) {
     console.error('[GET /urls/[urlId]] Fetch failed:', error);
 
