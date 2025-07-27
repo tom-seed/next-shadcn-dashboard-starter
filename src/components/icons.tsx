@@ -32,7 +32,9 @@ import {
   IconLayoutKanban,
   IconBrandGithub,
   IconLink,
-  IconDevicesCheck
+  IconDevicesCheck,
+  IconAi,
+  IconRobot
 } from '@tabler/icons-react';
 
 export type Icon = React.ComponentType<IconProps>;
@@ -70,5 +72,7 @@ export const Icons = {
   twitter: IconBrandTwitter,
   check: IconCheck,
   link: IconLink,
-  devicesCheck: IconDevicesCheck
+  devicesCheck: IconDevicesCheck,
+  ai: IconAi,
+  robot: IconRobot
 };

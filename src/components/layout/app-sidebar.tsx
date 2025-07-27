@@ -42,9 +42,9 @@ import {
   IconBell,
   IconChevronRight,
   IconChevronsDown,
-  IconCreditCard,
   IconLogout,
-  IconUserCircle
+  IconUserCircle,
+  IconAi
 } from '@tabler/icons-react';
 
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
@@ -96,6 +96,12 @@ export default function AppSidebar() {
         title: 'Audits',
         url: `${base}/audits`,
         icon: 'devicesCheck',
+        items: []
+      },
+      {
+        title: 'AtlasAi',
+        url: `#`,
+        icon: 'robot',
         items: []
       }
     ];
@@ -189,7 +195,14 @@ export default function AppSidebar() {
                   >
                     <Link href={item.url}>
                       <Icon />
-                      <span>{item.title}</span>
+                      <div className='flex w-full items-center justify-between'>
+                        <span>{item.title}</span>
+                        {item.title === 'AtlasAi' && (
+                          <span className='bg-muted text-muted-foreground ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase'>
+                            Coming Soon
+                          </span>
+                        )}
+                      </div>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -242,10 +255,6 @@ export default function AppSidebar() {
                   >
                     <IconUserCircle className='mr-2 h-4 w-4' />
                     Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <IconCreditCard className='mr-2 h-4 w-4' />
-                    Billing
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     <IconBell className='mr-2 h-4 w-4' />

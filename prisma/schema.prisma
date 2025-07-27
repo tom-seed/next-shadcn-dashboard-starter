@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Client {
-  id     Int     @id @default(autoincrement())
-  name   String
-  url    String?
-  cron   String?
-  crawls Crawl[]
-  urls   Urls[]
-  audits Audit[]
+  id          Int          @id @default(autoincrement())
+  name        String
+  url         String?
+  cron        String?
+  crawls      Crawl[]
+  urls        Urls[]
+  audits      Audit[]
+  auditIssues AuditIssue[]
 }
 
 model Crawl {
@@ -28,10 +29,10 @@ model Crawl {
 }
 
 model Urls {
-  id                         Int      @id @default(autoincrement())
-  client                     Client   @relation(fields: [clientId], references: [id])
+  id                         Int          @id @default(autoincrement())
+  client                     Client       @relation(fields: [clientId], references: [id])
   clientId                   Int
-  crawl                      Crawl?   @relation(fields: [crawlId], references: [id])
+  crawl                      Crawl?       @relation(fields: [crawlId], references: [id])
   crawlId                    Int?
   url                        String
   status                     Int?
@@ -39,8 +40,8 @@ model Urls {
   redirectTarget             String?
   canonical                  String?
   canonicalStatus            Int?
-  isSelfReferencingCanonical Boolean  @default(false)
-  isCanonicalised            Boolean  @default(false)
+  isSelfReferencingCanonical Boolean      @default(false)
+  isCanonicalised            Boolean      @default(false)
   metaTitle                  String?
   metaDescription            String?
   internalLinks              String[]
@@ -51,7 +52,7 @@ model Urls {
   h4                         String[]
   h5                         String[]
   h6                         String[]
-  issues                     String[] @default([])
+  auditIssues AuditIssue[]
 
   sourceLinks InternalLink[] @relation("SourceLinks")
   targetLinks InternalLink[] @relation("TargetLinks")
@@ -66,6 +67,8 @@ model Audit {
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  Int
   createdAt DateTime @default(now())
+
+  issues AuditIssue[]
 
   pages_missing_title       Int @default(0)
   too_short_title           Int @default(0)
@@ -95,31 +98,26 @@ model Audit {
   pages_3xx_response        Int @default(0)
   pages_4xx_response        Int @default(0)
   pages_5xx_response        Int @default(0)
+}
 
-  pages_missing_title_urls       String[]
-  too_short_title_urls           String[]
-  too_long_title_urls            String[]
-  pages_missing_description_urls String[]
-  too_short_description_urls     String[]
-  too_long_description_urls      String[]
-  pages_missing_h1_urls          String[]
-  pages_with_multiple_h1s_urls   String[]
-  pages_with_duplicate_h1s_urls  String[]
-  pages_missing_h2_urls          String[]
-  pages_with_multiple_h2s_urls   String[]
-  pages_with_duplicate_h2s_urls  String[]
-  pages_missing_h3_urls          String[]
-  pages_with_multiple_h3s_urls   String[]
-  pages_with_duplicate_h3s_urls  String[]
-  pages_missing_h4_urls          String[]
-  pages_with_multiple_h4s_urls   String[]
-  pages_with_duplicate_h4s_urls  String[]
-  pages_missing_h5_urls          String[]
-  pages_with_multiple_h5s_urls   String[]
-  pages_with_duplicate_h5s_urls  String[]
-  pages_missing_h6_urls          String[]
-  pages_with_multiple_h6s_urls   String[]
-  pages_with_duplicate_h6s_urls  String[]
+model AuditIssue {
+  id       Int    @id @default(autoincrement())
+  client   Client @relation(fields: [clientId], references: [id])
+  clientId Int
+
+  audit   Audit @relation(fields: [auditId], references: [id])
+  auditId Int
+
+  url   Urls @relation(fields: [urlId], references: [id])
+  urlId Int
+
+  issueKey String
+
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([auditId])
+  @@index([issueKey])
 }
 
 model InternalLink {

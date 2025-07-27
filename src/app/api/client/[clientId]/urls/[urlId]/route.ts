@@ -37,7 +37,7 @@ export async function GET(
         h4: true,
         h5: true,
         h6: true,
-        issues: true,
+        auditIssues: true,
         internalLinks: true,
         externalLinks: true,
 
@@ -79,7 +79,25 @@ export async function GET(
       return NextResponse.json({ error: 'URL not found' }, { status: 404 });
     }
 
-    return NextResponse.json(url);
+    // Shape response for frontend clarity
+    return NextResponse.json({
+      id: url.id,
+      url: url.url,
+      status: url.status,
+      metaTitle: url.metaTitle,
+      metaDescription: url.metaDescription,
+      h1: url.h1,
+      h2: url.h2,
+      h3: url.h3,
+      h4: url.h4,
+      h5: url.h5,
+      h6: url.h6,
+      auditIssues: url.auditIssues,
+      internalLinks: url.internalLinks,
+      externalLinks: url.externalLinks,
+      outgoingLinks: url.sourceLinks,
+      linkedFrom: url.targetLinks
+    });
   } catch (error: unknown) {
     console.error('[GET /urls/[urlId]] Fetch failed:', error);
 

@@ -1,8 +1,10 @@
 // src/lib/api/urls.ts
 
-import { Urls } from '@prisma/client'; // Assuming Urls type from Prisma
+import { Urls } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
-// Define the expected structure of the API response for URLs
+const prisma = new PrismaClient();
+
 interface PaginatedUrlsResponse {
   urls: Urls[];
   totalCount: number;
@@ -10,105 +12,7 @@ interface PaginatedUrlsResponse {
   perPage: number;
 }
 
-/**
- * Fetches a paginated and filtered list of URLs for a given client.
- * @param clientId The ID of the client.
- * @param page The current page number (1-indexed).
- * @param perPage The number of items per page.
- * @param search A search query to filter URLs by name/URL.
- * @param status A status code to filter URLs by.
- * @returns A promise that resolves to an object containing urls, totalCount, page, and perPage.
- */
-export async function getUrls(
-  clientId: string,
-  page: number = 1,
-  perPage: number = 10,
-  search: string = '',
-  status: string = ''
-): Promise<PaginatedUrlsResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const query = new URLSearchParams();
-
-  query.append('page', page.toString());
-  query.append('perPage', perPage.toString());
-  if (search) query.append('name', search); // 'name' maps to the URL search filter
-  if (status) query.append('status', status); // 'status' maps to the status filter
-
-  const res = await fetch(
-    `${baseUrl}/api/client/${clientId}/urls?${query.toString()}`,
-    {
-      cache: 'no-store', // Ensures fresh data on every request
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    }
-  );
-
-  if (!res.ok) {
-    // Attempt to parse error message from response, or use a default
-    const errorData = await res
-      .json()
-      .catch(() => ({ message: 'Unknown API error' }));
-    console.error('API Fetch Error:', errorData);
-    // Throw an error to be caught by the calling server component
-    throw new Error(
-      `Failed to fetch URLs: ${errorData.error || res.statusText}`
-    );
-  }
-
-  // Ensure the response always matches the expected structure
-  let data: PaginatedUrlsResponse = await res.json(); // Use 'let' as we might reassign data
-
-  // --- MODIFIED DEFENSIVE CHECKS TO CLARIFY LOGGING SOURCE ---
-  // This condition specifically catches if the entire 'data' object IS the array itself
-  if (
-    Array.isArray(data) &&
-    data.length > 0 &&
-    typeof data[0] === 'object' &&
-    'url' in data[0]
-  ) {
-    console.warn(
-      `[API_RESPONSE_ERROR] Backend returned a raw array instead of an object with 'urls' property. This is a temporary client-side patch. 
-      :`,
-      data
-    );
-    // Treat the received array as 'urls' and infer totalCount from its length
-    data = {
-      // Reassign data to match expected structured response
-      urls: data as unknown as Urls[], // Cast the raw array to Urls[]
-      totalCount: data.length, // Infer totalCount from array length
-      page: page, // Use current requested page
-      perPage: perPage // Use current requested perPage
-    };
-  } else {
-    // Original checks if data.urls or data.totalCount are just malformed
-    if (!Array.isArray(data.urls)) {
-      console.warn(
-        `[API_RESPONSE_ERROR] API response for 'urls' is not an array. Received:`,
-        data.urls
-      );
-      data.urls = [];
-    }
-    if (typeof data.totalCount !== 'number') {
-      console.warn(
-        `[API_RESPONSE_ERROR] API response for 'totalCount' is not a number. Received:`,
-        data.totalCount
-      );
-      data.totalCount = 0;
-    }
-  }
-  // --- END MODIFIED DEFENSIVE CHECKS ---
-
-  return data;
-}
-
-/**
- * Fetches details for a single URL by its ID.
- * @param clientId The ID of the client the URL belongs to.
- * @param urlId The ID of the URL to fetch.
- * @returns A promise that resolves to the URL details.
- */
-
+// Used to shape individual URL detail
 interface InternalLinkDetail {
   id: number;
   status: number | null;
@@ -130,49 +34,111 @@ interface ReferrerLinkDetail {
   };
 }
 
-interface ExtendedUrl extends Urls {
-  outgoingLinks: InternalLinkDetail[];
-  linkedFrom: ReferrerLinkDetail[];
+interface AuditIssue {
+  id: number;
+  issueKey: string;
+  auditId: number;
+  urlId: number;
+  clientId: number;
+  createdAt: Date; // ✅ was `string` before — must be Date to match Prisma
 }
 
+export interface ExtendedUrl extends Urls {
+  sourceLinks: InternalLinkDetail[];
+  targetLinks: ReferrerLinkDetail[];
+  auditIssues: AuditIssue[];
+}
+
+// Fetch paginated list
+export async function getUrls(
+  clientId: string,
+  page: number = 1,
+  perPage: number = 10,
+  search: string = '',
+  status: string = ''
+): Promise<PaginatedUrlsResponse> {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const query = new URLSearchParams();
+
+  query.append('page', page.toString());
+  query.append('perPage', perPage.toString());
+  if (search) query.append('name', search);
+  if (status) query.append('status', status);
+
+  const res = await fetch(
+    `${baseUrl}/api/client/${clientId}/urls?${query.toString()}`,
+    {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
+
+  if (!res.ok) {
+    const errorData = await res
+      .json()
+      .catch(() => ({ message: 'Unknown API error' }));
+    console.error('API Fetch Error:', errorData);
+    throw new Error(
+      `Failed to fetch URLs: ${errorData.error || res.statusText}`
+    );
+  }
+
+  let data: PaginatedUrlsResponse = await res.json();
+
+  if (
+    Array.isArray(data) &&
+    data.length > 0 &&
+    typeof data[0] === 'object' &&
+    'url' in data[0]
+  ) {
+    console.warn(`[API_RESPONSE_ERROR] Expected object, received array:`, data);
+    data = {
+      urls: data as unknown as Urls[],
+      totalCount: data.length,
+      page,
+      perPage
+    };
+  } else {
+    if (!Array.isArray(data.urls)) {
+      console.warn(`[API_RESPONSE_ERROR] urls is not an array:`, data.urls);
+      data.urls = [];
+    }
+    if (typeof data.totalCount !== 'number') {
+      console.warn(
+        `[API_RESPONSE_ERROR] totalCount is not a number:`,
+        data.totalCount
+      );
+      data.totalCount = 0;
+    }
+  }
+
+  return data;
+}
+
+// Fetch single URL by ID
 export async function getUrlById(
   clientId: string,
   urlId: string
 ): Promise<ExtendedUrl | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const url = `${baseUrl}/api/client/${clientId}/urls/${urlId}`;
-  console.log('[getUrlById] Fetching:', url);
-
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'x-client-id': clientId,
-        'Content-Type': 'application/json'
+  const url = await prisma.urls.findUnique({
+    where: {
+      id: Number(urlId),
+      clientId: Number(clientId)
+    },
+    include: {
+      auditIssues: true,
+      sourceLinks: {
+        include: {
+          target: true
+        }
       },
-      cache: 'no-store'
-    });
-
-    const data = await res.json().catch((err) => {
-      console.error('[getUrlById] Failed to parse JSON:', err);
-      throw new Error('Invalid JSON response');
-    });
-
-    if (res.status === 404 || !data) {
-      console.warn('[getUrlById] URL not found or empty response');
-      return null;
+      targetLinks: {
+        include: {
+          source: true
+        }
+      }
     }
+  });
 
-    if (!res.ok) {
-      console.error('[getUrlById] API error response:', data);
-      throw new Error(
-        `Failed to fetch URL by ID: ${data.error || res.statusText}`
-      );
-    }
-
-    console.log('[getUrlById] Success:', data);
-    return data;
-  } catch (err: any) {
-    console.error('[getUrlById] Threw error:', err.message);
-    throw err;
-  }
+  return url as ExtendedUrl | null;
 }

@@ -1,11 +1,27 @@
 import { getUrlById } from '@/lib/api/urls';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 
 interface UrlViewPageProps {
   clientId: string;
   urlId: string;
 }
+
+const issueMap = {
+  pages_missing_description: 'Missing Meta Description',
+  too_short_description: 'Meta Description Too Short',
+  pages_with_multiple_h2s: 'Multiple H2 Tags',
+  pages_missing_h4: 'Missing H4 Tag',
+  pages_missing_h5: 'Missing H5 Tag',
+  pages_missing_h6: 'Missing H6 Tag'
+};
 
 export default async function UrlViewPage({
   clientId,
@@ -54,10 +70,13 @@ export default async function UrlViewPage({
           </div>
           <div>
             <span className='font-medium'>Issues:</span>
-            {url.issues?.length > 0 ? (
+            {url.auditIssues?.length > 0 ? (
               <ul className='text-destructive list-inside list-disc'>
-                {url.issues.map((issue, idx) => (
-                  <li key={idx}>{issue}</li>
+                {url.auditIssues.map((issue, idx) => (
+                  <li key={idx}>
+                    {issueMap[issue.issueKey as keyof typeof issueMap] ||
+                      issue.issueKey}
+                  </li>
                 ))}
               </ul>
             ) : (
@@ -65,49 +84,75 @@ export default async function UrlViewPage({
             )}
           </div>
         </div>
-
-        {url.linkedFrom && url.linkedFrom.length > 0 && (
-          <div>
-            <h3 className='mt-6 mb-2 text-lg font-semibold'>Linked From</h3>
-            <div className='bg-muted/30 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3'>
-              {url.linkedFrom.map((link) => (
-                <div
-                  key={link.id}
-                  className='text-muted-foreground border-b pb-2 text-sm last:border-none'
-                >
-                  <div className='font-medium'>
-                    Page: {link.source?.url ?? '(unknown)'}
-                  </div>
-                  <div>Status: {link.source?.status ?? 'Unknown'}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {url.outgoingLinks && url.outgoingLinks.length > 0 && (
-          <div>
-            <h3 className='mt-6 mb-2 text-lg font-semibold'>Links To</h3>
-            <div className='bg-muted/30 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3'>
-              {url.outgoingLinks.map((link) => (
-                <div
-                  key={link.id}
-                  className='text-muted-foreground border-b pb-2 text-sm last:border-none'
-                >
-                  <div className='font-medium'>
-                    Target URL: {link.targetUrl || '(empty)'}
-                  </div>
-                  <div>Status: {link.status ?? 'Unknown'}</div>
-                  {link.target?.url && (
-                    <div className='text-xs'>
-                      → Crawled Target: {link.target.url}
+        <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+          {url.sourceLinks && url.sourceLinks.length > 0 && (
+            <div>
+              <div className='mt-6 mb-2 flex items-center gap-2'>
+                <h3 className='text-lg font-semibold'>Outlinks</h3>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='text-muted-foreground h-4 w-4 cursor-help' />
+                    </TooltipTrigger>
+                    <TooltipContent side='top' align='center' sideOffset={4}>
+                      <p>
+                        Unique outlinks going from this page to other pages on
+                        the site
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className='bg-muted/30 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3'>
+                {url.sourceLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className='text-muted-foreground border-b pb-2 text-sm last:border-none'
+                  >
+                    <div className='font-medium'>
+                      Page: {link.targetUrl ?? '(unknown)'}
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div>Status: {link.status ?? 'Unknown'}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {url.targetLinks && url.targetLinks.length > 0 && (
+            <div>
+              <div className='mt-6 mb-2 flex items-center gap-2'>
+                <h3 className='text-lg font-semibold'>Inlinks</h3>
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='text-muted-foreground h-4 w-4 cursor-help' />
+                    </TooltipTrigger>
+                    <TooltipContent side='top' align='center' sideOffset={4}>
+                      <p>
+                        Unique inlinks coming into this page from other pages on
+                        the site
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div className='bg-muted/30 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3'>
+                {url.targetLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className='text-muted-foreground border-b pb-2 text-sm last:border-none'
+                  >
+                    <div className='font-medium'>
+                      Target URL: {link.source.url || '(empty)'}
+                    </div>
+                    <div>Status: {link.status ?? 'Unknown'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
