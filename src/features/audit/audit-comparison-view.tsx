@@ -95,32 +95,32 @@ export default function AuditComparisonView({ clientId }: Props) {
                   {renderRow(
                     'Missing Titles',
                     'pages_missing_title',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-title-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-title`
                   )}
                   {renderRow(
                     'Too Short Title',
                     'too_short_title',
-                    `/dashboard/${clientId}/audits/issues/too-short-title-urls`
+                    `/dashboard/${clientId}/audits/issues/too-short-title`
                   )}
                   {renderRow(
                     'Too Long Title',
                     'too_long_title',
-                    `/dashboard/${clientId}/audits/issues/too-long-title-urls`
+                    `/dashboard/${clientId}/audits/issues/too-long-title`
                   )}
                   {renderRow(
                     'Missing Descriptions',
                     'pages_missing_description',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-description-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-description`
                   )}
                   {renderRow(
                     'Too Short Description',
                     'too_short_description',
-                    `/dashboard/${clientId}/audits/issues/too-short-description-urls`
+                    `/dashboard/${clientId}/audits/issues/too-short-description`
                   )}
                   {renderRow(
                     'Too Long Description',
                     'too_long_description',
-                    `/dashboard/${clientId}/audits/issues/too-long-description-urls`
+                    `/dashboard/${clientId}/audits/issues/too-long-description`
                   )}
                 </tbody>
               </table>
@@ -186,92 +186,92 @@ export default function AuditComparisonView({ clientId }: Props) {
                   {renderRow(
                     'Missing H1',
                     'pages_missing_h1',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-h1-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-h1`
                   )}
                   {renderRow(
                     'Missing H2',
                     'pages_missing_h2',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-h2-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-h2`
                   )}
                   {renderRow(
                     'Missing H3',
                     'pages_missing_h3',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-h3-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-h3`
                   )}
                   {renderRow(
                     'Missing H4',
                     'pages_missing_h4',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-h4-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-h4`
                   )}
                   {renderRow(
                     'Missing H5',
                     'pages_missing_h5',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-h5-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-h5`
                   )}
                   {renderRow(
                     'Missing H6',
                     'pages_missing_h6',
-                    `/dashboard/${clientId}/audits/issues/pages-missing-h6-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-missing-h6`
                   )}
                   {renderRow(
                     'Multiple H1',
                     'pages_with_multiple_h1s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h1s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h1s`
                   )}
                   {renderRow(
                     'Multiple H2',
                     'pages_with_multiple_h2s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h2s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h2s`
                   )}
                   {renderRow(
                     'Multiple H3',
                     'pages_with_multiple_h3s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h3s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h3s`
                   )}
                   {renderRow(
                     'Multiple H4',
                     'pages_with_multiple_h4s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h4s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h4s`
                   )}
                   {renderRow(
                     'Multiple H5',
                     'pages_with_multiple_h5s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h5s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h5s`
                   )}
                   {renderRow(
                     'Multiple H6',
                     'pages_with_multiple_h6s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h6s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-multiple-h6s`
                   )}
                   {renderRow(
                     'Duplicate H1',
                     'pages_with_duplicate_h1s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h1s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h1s`
                   )}
                   {renderRow(
                     'Duplicate H2',
                     'pages_with_duplicate_h2s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h2s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h2s`
                   )}
                   {renderRow(
                     'Duplicate H3',
                     'pages_with_duplicate_h3s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h3s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h3s`
                   )}
                   {renderRow(
                     'Duplicate H4',
                     'pages_with_duplicate_h4s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h4s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h4s`
                   )}
                   {renderRow(
                     'Duplicate H5',
                     'pages_with_duplicate_h5s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h5s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h5s`
                   )}
                   {renderRow(
                     'Duplicate H6',
                     'pages_with_duplicate_h6s',
-                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h6s-urls`
+                    `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h6s`
                   )}
                 </tbody>
               </table>

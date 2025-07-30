@@ -8,19 +8,40 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
+import { IconAlertTriangle } from '@tabler/icons-react';
 
 interface UrlViewPageProps {
   clientId: string;
   urlId: string;
 }
 
-const issueMap = {
-  pages_missing_description: 'Missing Meta Description',
+const issueMap: Record<string, React.ReactNode> = {
+  pages_missing_title: (
+    <span className='flex items-center gap-1'>
+      <IconAlertTriangle className='text-destructive h-4 w-4' />
+      Missing Meta Title
+    </span>
+  ),
+  too_short_title: 'Meta Title Too Short',
+  too_long_title: 'Meta Title Too Long',
+  pages_missing_description: (
+    <span className='flex items-center gap-1'>
+      <IconAlertTriangle className='text-destructive h-4 w-4' />
+      Missing Meta Description
+    </span>
+  ),
   too_short_description: 'Meta Description Too Short',
+  too_long_description: 'Meta Description Too Long',
+  pages_missing_h1: 'Missing H1 Tag',
+  pages_multiple_h1: 'Multiple H1 Tags',
+  pages_missing_h2: 'Missing H2 Tag',
+  pages_missing_h3: 'Missing H3 Tag',
   pages_with_multiple_h2s: 'Multiple H2 Tags',
   pages_missing_h4: 'Missing H4 Tag',
   pages_missing_h5: 'Missing H5 Tag',
-  pages_missing_h6: 'Missing H6 Tag'
+  pages_missing_h6: 'Missing H6 Tag',
+  pages_4xx_response: '4xx Response',
+  pages_5xx_response: '5xx Response'
 };
 
 export default async function UrlViewPage({
@@ -71,7 +92,7 @@ export default async function UrlViewPage({
           <div>
             <span className='font-medium'>Issues:</span>
             {url.auditIssues?.length > 0 ? (
-              <ul className='text-destructive list-inside list-disc'>
+              <ul className='list-inside'>
                 {url.auditIssues.map((issue, idx) => (
                   <li key={idx}>
                     {issueMap[issue.issueKey as keyof typeof issueMap] ||
@@ -88,7 +109,7 @@ export default async function UrlViewPage({
           {url.sourceLinks && url.sourceLinks.length > 0 && (
             <div>
               <div className='mt-6 mb-2 flex items-center gap-2'>
-                <h3 className='text-lg font-semibold'>Outlinks</h3>
+                <h3 className='text-lg font-semibold'>Unique Outlinks</h3>
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -122,7 +143,7 @@ export default async function UrlViewPage({
           {url.targetLinks && url.targetLinks.length > 0 && (
             <div>
               <div className='mt-6 mb-2 flex items-center gap-2'>
-                <h3 className='text-lg font-semibold'>Inlinks</h3>
+                <h3 className='text-lg font-semibold'>Unique Inlinks</h3>
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>

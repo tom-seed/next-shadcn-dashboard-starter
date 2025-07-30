@@ -62,7 +62,7 @@ export default function ClientOverviewPage() {
           if (!isCancelled && latest) {
             setLatest(latest);
             setPrevious(previous);
-            return true; // ✅ Already have audit
+            return true;
           }
         }
       } catch {
@@ -170,6 +170,7 @@ export default function ClientOverviewPage() {
     'pages_4xx_response',
     true
   );
+  const { badge: trendScore, direction: dirScore } = getTrendInfo('score');
 
   return (
     <PageContainer>
@@ -251,15 +252,19 @@ export default function ClientOverviewPage() {
 
             <Card>
               <CardHeader>
-                <CardDescription>Audit Trend</CardDescription>
-                <CardTitle className='flex items-center gap-2 text-3xl'>
-                  <IconTrendingUp className='h-6 w-6 text-green-500' />
-                  +5%
+                <CardDescription>Audit Score</CardDescription>
+                <CardTitle className='text-3xl font-bold tabular-nums'>
+                  {latest?.score ?? '—'}
                 </CardTitle>
-                <CardFooter className='text-muted-foreground text-sm'>
-                  From previous audit
-                </CardFooter>
+                <CardAction>{trendScore}</CardAction>
               </CardHeader>
+              <CardFooter className='text-muted-foreground text-sm'>
+                {dirScore === 'up'
+                  ? 'Improved since last audit'
+                  : dirScore === 'down'
+                    ? 'Worsened since last audit'
+                    : 'No change from last audit'}
+              </CardFooter>
             </Card>
           </div>
 

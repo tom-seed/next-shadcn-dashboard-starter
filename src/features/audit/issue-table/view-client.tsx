@@ -97,8 +97,8 @@ export default function AuditIssueViewClient({
     );
     const result = await res.json();
 
-    const urls = Array.isArray(result.urls)
-      ? result.urls.map((url: string, i: number) => ({ id: i, url }))
+    const urls = Array.isArray(result.issues)
+      ? result.issues.map((issue: { id: number; url: string }) => issue)
       : [];
 
     setData(urls);

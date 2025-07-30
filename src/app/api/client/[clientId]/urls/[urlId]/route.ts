@@ -1,5 +1,3 @@
-// src/app/api/client/[clientId]/urls/[urlId]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
@@ -7,104 +5,88 @@ import { withAccelerate } from '@prisma/extension-accelerate';
 const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ clientId: string; urlId: string }> }
+  req: NextRequest,
+  { params }: { params: Promise<{ clientId: string; issueKey: string }> }
 ) {
-  const { clientId, urlId } = await params;
+  const { clientId, issueKey: rawIssueKey } = await params;
 
-  const clientIdInt = parseInt(clientId);
-  const urlIdInt = parseInt(urlId);
+  // Normalize from kebab-case and strip "_urls" suffix
+  let issueKey = rawIssueKey.replaceAll('-', '_');
+  if (issueKey.endsWith('_urls')) {
+    issueKey = issueKey.slice(0, -6); // remove the "_urls" part
+  }
 
-  if (isNaN(clientIdInt) || isNaN(urlIdInt)) {
+  const defaultResponse = {
+    urls: [],
+    totalCount: 0,
+    page: 1,
+    perPage: 10
+  };
+
+  const id = parseInt(clientId);
+  if (isNaN(id)) {
     return NextResponse.json(
-      { error: 'Invalid clientId or urlId' },
+      { ...defaultResponse, error: 'Invalid client ID' },
       { status: 400 }
     );
   }
 
-  try {
-    const url = await prisma.urls.findUnique({
-      where: { id: urlIdInt, clientId: clientIdInt },
-      select: {
-        id: true,
-        url: true,
-        status: true,
-        metaTitle: true,
-        metaDescription: true,
-        h1: true,
-        h2: true,
-        h3: true,
-        h4: true,
-        h5: true,
-        h6: true,
-        auditIssues: true,
-        internalLinks: true,
-        externalLinks: true,
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1');
+  const perPage = Math.min(parseInt(searchParams.get('perPage') || '10'), 50);
+  const skip = (page - 1) * perPage;
 
-        sourceLinks: {
-          select: {
-            id: true,
-            targetUrl: true,
-            status: true,
-            target: {
-              select: {
-                id: true,
-                url: true,
-                status: true
-              }
-            }
-          }
-        },
-        targetLinks: {
-          select: {
-            id: true,
-            status: true,
-            source: {
-              select: {
-                id: true,
-                url: true,
-                status: true
-              }
-            }
-          }
-        }
-      },
-      cacheStrategy: {
-        ttl: 30,
-        swr: 60
-      }
+  try {
+    const audit = await prisma.audit.findFirst({
+      where: { clientId: id },
+      orderBy: { createdAt: 'desc' },
+      cacheStrategy: { ttl: 3600 * 24, swr: 3600 * 24 * 3 }
     });
 
-    if (!url) {
-      return NextResponse.json({ error: 'URL not found' }, { status: 404 });
+    if (!audit) {
+      return NextResponse.json(
+        { ...defaultResponse, error: 'Audit not found' },
+        { status: 404 }
+      );
     }
 
-    // Shape response for frontend clarity
-    return NextResponse.json({
-      id: url.id,
-      url: url.url,
-      status: url.status,
-      metaTitle: url.metaTitle,
-      metaDescription: url.metaDescription,
-      h1: url.h1,
-      h2: url.h2,
-      h3: url.h3,
-      h4: url.h4,
-      h5: url.h5,
-      h6: url.h6,
-      auditIssues: url.auditIssues,
-      internalLinks: url.internalLinks,
-      externalLinks: url.externalLinks,
-      outgoingLinks: url.sourceLinks,
-      linkedFrom: url.targetLinks
-    });
-  } catch (error: unknown) {
-    console.error('[GET /urls/[urlId]] Fetch failed:', error);
+    const [issues, totalCount] = await Promise.all([
+      prisma.auditIssue.findMany({
+        where: {
+          auditId: audit.id,
+          issueKey
+        },
+        include: {
+          url: true // get the actual URL string
+        },
+        skip,
+        take: perPage
+      }),
+      prisma.auditIssue.count({
+        where: {
+          auditId: audit.id,
+          issueKey
+        }
+      })
+    ]);
 
+    const formatted = issues
+      .filter((issue) => issue.url?.url)
+      .map((issue) => ({
+        id: issue.id,
+        url: issue.url.url
+      }));
+
+    return NextResponse.json({
+      issues: formatted,
+      totalCount,
+      page,
+      perPage
+    });
+  } catch (err) {
+    console.error('❌ API error:', err);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : 'Unknown server error'
-      },
+      { ...defaultResponse, error: 'Internal Server Error' },
       { status: 500 }
     );
   }

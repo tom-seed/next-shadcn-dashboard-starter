@@ -1,5 +1,3 @@
-// FILE: src/app/api/client/[clientId]/audits/issues/[issueKey]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
@@ -11,9 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ clientId: string; issueKey: string }> }
 ) {
   const { clientId, issueKey: rawIssueKey } = await params;
-  const issueKey = rawIssueKey.replaceAll('-', '_');
-
-  const id = parseInt(clientId);
+  const issueKey = rawIssueKey.replaceAll('-', '_'); // match your DB schema
 
   const defaultResponse = {
     urls: [],
@@ -22,6 +18,7 @@ export async function GET(
     perPage: 10
   };
 
+  const id = parseInt(clientId);
   if (isNaN(id)) {
     return NextResponse.json(
       { ...defaultResponse, error: 'Invalid client ID' },
@@ -48,24 +45,39 @@ export async function GET(
       );
     }
 
-    const allUrls = (audit as any)[issueKey] || [];
+    const [issues, totalCount] = await Promise.all([
+      prisma.auditIssue.findMany({
+        where: {
+          auditId: audit.id,
+          issueKey
+        },
+        include: {
+          url: true // join with URL for actual `url.url` string
+        },
+        skip,
+        take: perPage
+      }),
+      prisma.auditIssue.count({
+        where: {
+          auditId: audit.id,
+          issueKey
+        }
+      })
+    ]);
 
-    if (!Array.isArray(allUrls)) {
-      return NextResponse.json(
-        { ...defaultResponse, error: 'Invalid data format for issueKey' },
-        { status: 500 }
-      );
-    }
-
-    const paginatedUrls = allUrls.slice(skip, skip + perPage);
+    const formattedIssues = issues.map((issue) => ({
+      id: issue.id,
+      url: issue.url?.url ?? '(URL missing)'
+    }));
 
     return NextResponse.json({
-      urls: paginatedUrls,
-      totalCount: allUrls.length,
+      issues: formattedIssues,
+      totalCount,
       page,
       perPage
     });
   } catch (err) {
+    console.error('❌ API error:', err);
     return NextResponse.json(
       { ...defaultResponse, error: 'Internal Server Error' },
       { status: 500 }
