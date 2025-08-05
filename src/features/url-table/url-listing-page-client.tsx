@@ -71,7 +71,6 @@ export default function UrlListingPageClient({
     });
 
     const urlPath = `/api/client/${clientId}/urls?${query.toString()}${crawlId ? `&crawlId=${crawlId}` : ''}`;
-    console.log('🌐 Fetching:', urlPath);
 
     const res = await fetch(urlPath, { cache: 'no-store' });
 

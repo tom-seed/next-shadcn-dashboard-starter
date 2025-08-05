@@ -7,8 +7,9 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { Info, Replace } from 'lucide-react';
+import { IconAlertTriangle, IconLink } from '@tabler/icons-react';
+import Link from 'next/link';
 
 interface UrlViewPageProps {
   clientId: string;
@@ -65,6 +66,9 @@ export default async function UrlViewPage({
           <div>
             <span className='text-sm font-medium'>URL:</span>
             <p className='text-muted-foreground text-sm break-all'>{url.url}</p>
+            <Link href={url.url}>
+              <IconLink className='text-muted-foreground h-4 w-4' />
+            </Link>
           </div>
           <div>
             <span className='text-sm font-medium'>Status:</span>
@@ -106,7 +110,7 @@ export default async function UrlViewPage({
           </div>
         </div>
         <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
-          {url.sourceLinks && url.sourceLinks.length > 0 && (
+          {url.internalLinks && url.internalLinks.length > 0 && (
             <div>
               <div className='mt-6 mb-2 flex items-center gap-2'>
                 <h3 className='text-lg font-semibold'>Unique Outlinks</h3>
@@ -125,49 +129,15 @@ export default async function UrlViewPage({
                 </TooltipProvider>
               </div>
               <div className='bg-muted/30 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3'>
-                {url.sourceLinks.map((link) => (
+                {url.internalLinks.map((link) => (
                   <div
-                    key={link.id}
+                    key={link}
                     className='text-muted-foreground border-b pb-2 text-sm last:border-none'
                   >
-                    <div className='font-medium'>
-                      Page: {link.targetUrl ?? '(unknown)'}
-                    </div>
-                    <div>Status: {link.status ?? 'Unknown'}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {url.targetLinks && url.targetLinks.length > 0 && (
-            <div>
-              <div className='mt-6 mb-2 flex items-center gap-2'>
-                <h3 className='text-lg font-semibold'>Unique Inlinks</h3>
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className='text-muted-foreground h-4 w-4 cursor-help' />
-                    </TooltipTrigger>
-                    <TooltipContent side='top' align='center' sideOffset={4}>
-                      <p>
-                        Unique inlinks coming into this page from other pages on
-                        the site
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <div className='bg-muted/30 max-h-48 space-y-2 overflow-y-auto rounded-md border p-3'>
-                {url.targetLinks.map((link) => (
-                  <div
-                    key={link.id}
-                    className='text-muted-foreground border-b pb-2 text-sm last:border-none'
-                  >
-                    <div className='font-medium'>
-                      Target URL: {link.source.url || '(empty)'}
-                    </div>
-                    <div>Status: {link.status ?? 'Unknown'}</div>
+                    {link}
+                    <Link href={link}>
+                      <IconLink className='text-muted-foreground h-4 w-4' />
+                    </Link>
                   </div>
                 ))}
               </div>

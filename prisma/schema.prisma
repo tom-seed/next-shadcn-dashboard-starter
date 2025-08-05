@@ -67,6 +67,7 @@ model Audit {
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  Int
   createdAt DateTime @default(now())
+  score     Int?
 
   issues AuditIssue[]
 

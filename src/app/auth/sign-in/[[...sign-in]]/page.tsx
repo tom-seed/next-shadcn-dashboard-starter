@@ -24,5 +24,5 @@ export default async function Page() {
   } catch (error) {
     // Error fetching GitHub stars, using default value
   }
-  return <SignInViewPage stars={stars} />;
+  return <SignInViewPage />;
 }

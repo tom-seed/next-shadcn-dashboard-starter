@@ -11,10 +11,8 @@ import {
   CardAction
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BarGraph } from '@/features/overview/components/bar-graph';
 import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
-import { PieGraph } from '@/features/overview/components/pie-graph';
-import { RecentSales } from '@/features/overview/components/recent-sales';
+import { DoughnutGraph } from '@/features/overview/components/doughnut-graph';
 import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { getTrend } from '@/lib/helpers/getTrend';
@@ -172,6 +170,9 @@ export default function ClientOverviewPage() {
   );
   const { badge: trendScore, direction: dirScore } = getTrendInfo('score');
 
+  const lastCrawlClean = latest?.createdAt
+    ? new Date(latest.createdAt).toLocaleString()
+    : 'N/A';
   return (
     <PageContainer>
       {!latest ? (
@@ -186,8 +187,11 @@ export default function ClientOverviewPage() {
               <ReCrawlButton clientId={String(client.id)} url={client.url} />
             )}
           </div>
+          <h2 className='text-muted-foreground mt-2 mb-6 text-sm'>
+            Last Crawl: {lastCrawlClean}
+          </h2>
 
-          <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
+          <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
             <Card className='@container/card'>
               <CardHeader>
                 <CardDescription>Pages Crawled</CardDescription>
@@ -254,7 +258,7 @@ export default function ClientOverviewPage() {
               <CardHeader>
                 <CardDescription>Audit Score</CardDescription>
                 <CardTitle className='text-3xl font-bold tabular-nums'>
-                  {latest?.score ?? '—'}
+                  {latest?.score ?? '—'}/100
                 </CardTitle>
                 <CardAction>{trendScore}</CardAction>
               </CardHeader>
@@ -273,13 +277,7 @@ export default function ClientOverviewPage() {
               <AreaGraphStatusCodes />
             </div>
             <div className='col-span-3'>
-              <PieGraph />
-            </div>
-            <div className='col-span-4'>
-              <BarGraph />
-            </div>
-            <div className='col-span-3'>
-              <RecentSales />
+              <DoughnutGraph auditScore={latest?.score || 0} />
             </div>
           </div>
         </div>
