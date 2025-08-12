@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { Heading } from '@/components/ui/heading';
 import { Button } from '@/components/ui/button';
+import { headers } from 'next/headers';
 
 function formatDateTime(date?: Date | string | null) {
   if (!date) return '—';
@@ -22,12 +23,14 @@ function formatDateTime(date?: Date | string | null) {
 }
 
 export default async function OverViewLayout() {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/api/client/dashboard/clients/overview`,
-    {
-      cache: 'no-store'
-    }
-  );
+  const h = await headers();
+  const proto = (h.get('x-forwarded-proto') ?? 'http').split(',')[0];
+  const host = h.get('host') ?? 'localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${proto}://${host}`;
+
+  const res = await fetch(`${baseUrl}/api/client/dashboard/clients/overview`, {
+    cache: 'no-store'
+  });
 
   if (!res.ok) {
     // Fallback to empty list on API error
