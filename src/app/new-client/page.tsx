@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import { Heading } from '@/components/ui/heading';
+import { Card } from '@/components/ui/card';
 
 export default function NewClientPage() {
   const [name, setName] = useState('');
@@ -36,7 +38,6 @@ export default function NewClientPage() {
       if (!data.success) {
         alert(data.error || 'Something went wrong');
       } else {
-        // ✅ Redirect instead of alerting
         window.location.href = data.redirectUrl;
       }
     } catch (err) {
@@ -49,30 +50,35 @@ export default function NewClientPage() {
   return (
     <PageContainer>
       <div className='space-y-4 p-4'>
-        <h1 className='text-2xl font-bold'>New Client</h1>
-        <Input
-          placeholder='Client Name'
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+        <Heading
+          title='New Client'
+          description='Create a new client for crawling'
         />
-        <Input
-          placeholder='https://client.com'
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-        <Select value={cron} onValueChange={setCron}>
-          <SelectTrigger>
-            <SelectValue placeholder='Schedule' />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='daily'>Daily</SelectItem>
-            <SelectItem value='weekly'>Weekly</SelectItem>
-            <SelectItem value='monthly'>Monthly</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button onClick={handleSubmit} disabled={loading}>
-          {loading ? 'Crawling...' : 'Start Crawl'}
-        </Button>
+        <Card className='p-4'>
+          <Input
+            placeholder='Nike'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Input
+            placeholder='https://client.com'
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <Select value={cron} onValueChange={setCron}>
+            <SelectTrigger>
+              <SelectValue placeholder='Schedule' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='daily'>Daily</SelectItem>
+              <SelectItem value='weekly'>Weekly</SelectItem>
+              <SelectItem value='monthly'>Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Crawling...' : 'Start Crawl'}
+          </Button>
+        </Card>
       </div>
     </PageContainer>
   );

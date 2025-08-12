@@ -46,8 +46,8 @@ export function AreaGraphStatusCodes() {
         );
         const { data } = await res.json();
         setChartData(data);
-      } catch (error) {
-        console.error('Error fetching status code trend data:', error);
+      } catch {
+        // ignore
       }
     }
 

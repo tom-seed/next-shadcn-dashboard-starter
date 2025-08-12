@@ -7,7 +7,7 @@ import { Suspense } from 'react';
 import UrlListingPage from '@/features/url-table/url-listing-page';
 
 export const metadata = {
-  title: 'Dashboard: URLs'
+  title: 'Dashboard | URLs | Atlas'
 };
 
 interface PageProps {

@@ -1,4 +1,4 @@
-// ✅ FILE: src/app/api/client/[clientId]/urls/route.ts
+// FILE: src/app/api/client/[clientId]/urls/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -34,6 +34,9 @@ export async function GET(
 
   const urlFilter = searchParams.get('url') || '';
   const metaTitleFilter = searchParams.get('metaTitle') || '';
+  const metaDescriptionFilter = searchParams.get('metaDescription') || '';
+  const canonicalFilter = searchParams.get('canonical') || '';
+  const h1Filter = searchParams.get('h1') || '';
   const statusFilter = searchParams.get('status');
   const crawlIdParam = searchParams.get('crawlId');
   const crawlId = crawlIdParam ? parseInt(crawlIdParam) : null;
@@ -41,6 +44,9 @@ export async function GET(
   const ALLOWED_SORT_FIELDS = [
     'url',
     'metaTitle',
+    'metaDescription',
+    'canonical',
+    'h1',
     'status',
     'createdAt'
   ] as const;
@@ -83,6 +89,33 @@ export async function GET(
       filters.push({
         metaTitle: {
           contains: metaTitleFilter,
+          mode: 'insensitive'
+        }
+      });
+    }
+
+    if (metaDescriptionFilter) {
+      filters.push({
+        metaDescription: {
+          contains: metaDescriptionFilter,
+          mode: 'insensitive'
+        }
+      });
+    }
+
+    if (canonicalFilter) {
+      filters.push({
+        canonical: {
+          contains: canonicalFilter,
+          mode: 'insensitive'
+        }
+      });
+    }
+
+    if (h1Filter) {
+      filters.push({
+        h1: {
+          contains: h1Filter,
           mode: 'insensitive'
         }
       });

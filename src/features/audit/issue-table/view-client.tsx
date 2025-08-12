@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
 import {
   useQueryStates,
   parseAsInteger,
@@ -116,39 +118,92 @@ export default function AuditIssueViewClient({
       ? (updater as (old: T) => T)(previous)
       : updater;
 
+  // --- CSV helpers ---
+  const escapeCsv = (val: unknown) => {
+    const s = String(val ?? '');
+    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  };
+
+  const rowsToCsv = (rows: { url: string }[]) => {
+    const header = ['url'];
+    const lines = [header.join(',')];
+    for (const r of rows) lines.push([escapeCsv(r.url)].join(','));
+    return lines.join('\n');
+  };
+
+  const exportCsv = async () => {
+    // Fetch ALL rows for this issue (bypass pagination)
+    const query = new URLSearchParams({
+      page: '1',
+      perPage: '100000',
+      url: searchParams.url || ''
+    });
+
+    const res = await fetch(
+      `/api/client/${clientId}/audits/issues/${issueKey}?${query.toString()}`,
+      { cache: 'no-store' }
+    );
+    if (!res.ok) return;
+    const result = await res.json();
+    const rows: { id: number; url: string }[] = Array.isArray(result.issues)
+      ? result.issues
+      : [];
+    const csv = rowsToCsv(rows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const urlObj = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = urlObj;
+    a.download = `${issueKey}-urls.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(urlObj);
+  };
+
   return (
     <div className='flex min-h-[calc(100vh-20rem)] flex-col space-y-4 p-4'>
-      <h1 className='text-2xl font-bold'>
-        {issueKey
-          .split('_')
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ')}
-      </h1>
+      <div className='flex items-center justify-between'>
+        <h1 className='text-2xl font-bold'>
+          {issueKey
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')}
+        </h1>
+        <Button
+          variant='outline'
+          size='sm'
+          onClick={exportCsv}
+          className='gap-2'
+        >
+          <Download className='h-4 w-4' /> Export CSV
+        </Button>
+      </div>
       {issueKey === 'too_long_title_urls' && <TitlesTooLong />}
-      {issueKey === 'too_short_title_urls' && <TitlesTooShort />}
-      {issueKey === 'pages_missing_title_urls' && <TitlesMissing />}
-      {issueKey === 'too_long_description_urls' && <DescriptionsTooLong />}
-      {issueKey === 'too_short_description_urls' && <DescriptionsTooShort />}
-      {issueKey === 'pages_missing_description_urls' && <DescriptionsMissing />}
-      {issueKey === 'pages_missing_h1_urls' && <Heading1Missing />}
-      {issueKey === 'pages_missing_h2_urls' && <Heading2Missing />}
-      {issueKey === 'pages_missing_h3_urls' && <Heading3Missing />}
-      {issueKey === 'pages_missing_h4_urls' && <Heading4Missing />}
-      {issueKey === 'pages_missing_h5_urls' && <Heading5Missing />}
-      {issueKey === 'pages_missing_h6_urls' && <Heading6Missing />}
-      {issueKey === 'pages_with_multiple_h1s_urls' && <Heading1Multiple />}
-      {issueKey === 'pages_with_multiple_h2s_urls' && <Heading2Multiple />}
-      {issueKey === 'pages_with_multiple_h3s_urls' && <Heading3Multiple />}
-      {issueKey === 'pages_with_multiple_h4s_urls' && <Heading4Multiple />}
-      {issueKey === 'pages_with_multiple_h5s_urls' && <Heading5Multiple />}
-      {issueKey === 'pages_with_multiple_h6s_urls' && <Heading6Multiple />}
-      {issueKey === 'pages_with_duplicate_h1s_urls' && <Heading1Duplicate />}
-      {issueKey === 'pages_with_duplicate_h2s_urls' && <Heading2Duplicate />}
-      {issueKey === 'pages_with_duplicate_h3s_urls' && <Heading3Duplicate />}
-      {issueKey === 'pages_with_duplicate_h4s_urls' && <Heading4Duplicate />}
-      {issueKey === 'pages_with_duplicate_h5s_urls' && <Heading5Duplicate />}
-      {issueKey === 'pages_with_duplicate_h6s_urls' && <Heading6Duplicate />}
-
+      {issueKey === 'too_short_title' && <TitlesTooShort />}
+      {issueKey === 'pages_missing_title' && <TitlesMissing />}
+      {issueKey === 'too_long_description' && <DescriptionsTooLong />}
+      {issueKey === 'too_short_description' && <DescriptionsTooShort />}
+      {issueKey === 'pages_missing_description' && <DescriptionsMissing />}
+      {issueKey === 'pages_missing_h1' && <Heading1Missing />}
+      {issueKey === 'pages_missing_h2' && <Heading2Missing />}
+      {issueKey === 'pages_missing_h3' && <Heading3Missing />}
+      {issueKey === 'pages_missing_h4' && <Heading4Missing />}
+      {issueKey === 'pages_missing_h5' && <Heading5Missing />}
+      {issueKey === 'pages_missing_h6' && <Heading6Missing />}
+      {issueKey === 'pages_with_multiple_h1s' && <Heading1Multiple />}
+      {issueKey === 'pages_with_multiple_h2s' && <Heading2Multiple />}
+      {issueKey === 'pages_with_multiple_h3s' && <Heading3Multiple />}
+      {issueKey === 'pages_with_multiple_h4s' && <Heading4Multiple />}
+      {issueKey === 'pages_with_multiple_h5s' && <Heading5Multiple />}
+      {issueKey === 'pages_with_multiple_h6s' && <Heading6Multiple />}
+      {issueKey === 'pages_with_duplicate_h1s' && <Heading1Duplicate />}
+      {issueKey === 'pages_with_duplicate_h2s' && <Heading2Duplicate />}
+      {issueKey === 'pages_with_duplicate_h3s' && <Heading3Duplicate />}
+      {issueKey === 'pages_with_duplicate_h4s' && <Heading4Duplicate />}
+      {issueKey === 'pages_with_duplicate_h5s' && <Heading5Duplicate />}
+      {issueKey === 'pages_with_duplicate_h6s' && <Heading6Duplicate />}
+      {}
       <AuditIssueTable
         data={data}
         totalItems={totalItems}

@@ -1,19 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-  CardAction
+  CardAction,
+  CardContent
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
 import { DoughnutGraph } from '@/features/overview/components/doughnut-graph';
-import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
+import {
+  IconTrendingUp,
+  IconTrendingDown,
+  IconArrowDownRight,
+  IconArrowUpRight,
+  IconAlertTriangle
+} from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { getTrend } from '@/lib/helpers/getTrend';
 import { CrawlLoadingSpinner } from '@/components/ui/crawl-loading-spinner';
@@ -24,10 +31,12 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip';
+import { Heading } from '@/components/ui/heading';
+
+// Main component for the client overview page
 
 export default function ClientOverviewPage() {
   const { clientId } = useParams();
-  const router = useRouter();
   const [client, setClient] = useState<{
     id: number;
     name: string;
@@ -47,9 +56,7 @@ export default function ClientOverviewPage() {
         const res = await fetch(`/api/client/${clientId}`);
         const clientData = await res.json();
         if (!isCancelled) setClient(clientData);
-      } catch {
-        console.warn('Failed to fetch client');
-      }
+      } catch {}
     };
 
     const checkLatestAudit = async () => {
@@ -82,13 +89,12 @@ export default function ClientOverviewPage() {
             setPrevious(data.previous);
             eventSource.close();
           }
-        } catch (err) {
-          console.error('Failed to parse SSE event', err);
+        } catch {
+          // ignore
         }
       };
 
-      eventSource.onerror = (err) => {
-        console.error('SSE error:', err);
+      eventSource.onerror = () => {
         eventSource.close();
       };
     };
@@ -105,6 +111,80 @@ export default function ClientOverviewPage() {
       if (eventSource) eventSource.close();
     };
   }, [clientId]);
+
+  // --- Helpers for issue deltas & labels ---
+  const EXCLUDE_KEYS = new Set([
+    'id',
+    'clientId',
+    'createdAt',
+    'updatedAt',
+    'score',
+    'pages_200_response',
+    'pages_3xx_response',
+    'pages_4xx_response',
+    'pages_5xx_response'
+  ]);
+
+  type Severity = 'Alert' | 'Warning' | 'Opportunity';
+  const getSeverity = (k: string): Severity => {
+    if (/5xx|4xx|missing_(title|description|h1|h2)/.test(k)) return 'Alert';
+    if (
+      /3xx|multiple_(title|description|h1)|with_multiple_h2s|duplicate_(title|description|h1|h2)/.test(
+        k
+      )
+    )
+      return 'Warning';
+    if (/too_short_|too_long_|under_|over_/.test(k)) return 'Opportunity';
+    return 'Warning';
+  };
+
+  const prettyIssue = (k: string) =>
+    k
+      .replace(/^pages_/, '')
+      .replace(/_/g, ' ')
+      .replace(/\bwith\b\s*/i, '')
+      .replace(/\bh1\b/gi, 'H1')
+      .replace(/\bh2\b/gi, 'H2')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const computeIssueDeltas = (
+    latestObj: Record<string, any>,
+    prevObj: Record<string, any>
+  ) => {
+    const entries: {
+      key: string;
+      latest: number;
+      prev: number;
+      delta: number;
+      severity: Severity;
+    }[] = [];
+    if (!latestObj) return entries;
+    for (const [k, v] of Object.entries(latestObj)) {
+      if (EXCLUDE_KEYS.has(k)) continue;
+      if (typeof v !== 'number') continue;
+      const prev = typeof prevObj?.[k] === 'number' ? prevObj[k] : 0;
+      const delta = v - prev;
+      entries.push({
+        key: k,
+        latest: v,
+        prev,
+        delta,
+        severity: getSeverity(k)
+      });
+    }
+    return entries;
+  };
+
+  const TOP_LIMIT = 5;
+  const allIssueDeltas = computeIssueDeltas(latest || {}, previous || {});
+  const topTrendingUp = allIssueDeltas
+    .filter((e) => e.delta > 0)
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, TOP_LIMIT);
+  const topTrendingDown = allIssueDeltas
+    .filter((e) => e.delta < 0)
+    .sort((a, b) => a.delta - b.delta)
+    .slice(0, TOP_LIMIT);
 
   const getTrendInfo = (
     metric: string,
@@ -182,15 +262,30 @@ export default function ClientOverviewPage() {
       ) : (
         <div className='flex flex-1 flex-col space-y-2'>
           <div className='flex items-center justify-between'>
-            <h1 className='text-2xl font-bold'>{`${client?.name} Overview`}</h1>
+            <Heading
+              title={`${client?.name} Overview`}
+              description={`Last Crawl: ${lastCrawlClean}`}
+            />
             {client && (
               <ReCrawlButton clientId={String(client.id)} url={client.url} />
             )}
           </div>
-          <h2 className='text-muted-foreground mt-2 mb-6 text-sm'>
-            Last Crawl: {lastCrawlClean}
-          </h2>
 
+          {/* ROW 1: Primary visuals */}
+          <div className='mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-7'>
+            <div className='col-span-4'>
+              <div className='h-full'>
+                <AreaGraphStatusCodes />
+              </div>
+            </div>
+            <div className='col-span-3'>
+              <div className='h-full'>
+                <DoughnutGraph auditScore={latest?.score || 0} />
+              </div>
+            </div>
+          </div>
+
+          {/* ROW 2: KPIs */}
           <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
             <Card className='@container/card'>
               <CardHeader>
@@ -216,7 +311,7 @@ export default function ClientOverviewPage() {
 
             <Card className='@container/card'>
               <CardHeader>
-                <CardDescription>3xx Error Codes</CardDescription>
+                <CardDescription>Redirects (3xx)</CardDescription>
                 <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
                   {latest?.pages_3xx_response || 0}
                 </CardTitle>
@@ -230,13 +325,15 @@ export default function ClientOverviewPage() {
                       ? 'Trending down'
                       : 'No change'}
                 </div>
-                <div className='text-muted-foreground'>Error pages (3xx)</div>
+                <div className='text-muted-foreground'>
+                  Redirects and chains (3xx)
+                </div>
               </CardFooter>
             </Card>
 
             <Card className='@container/card'>
               <CardHeader>
-                <CardDescription>4xx Error Codes</CardDescription>
+                <CardDescription>Client Errors (4xx)</CardDescription>
                 <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
                   {latest?.pages_4xx_response || 0}
                 </CardTitle>
@@ -250,7 +347,7 @@ export default function ClientOverviewPage() {
                       ? 'Trending down'
                       : 'No change'}
                 </div>
-                <div className='text-muted-foreground'>Error pages (4xx)</div>
+                <div className='text-muted-foreground'>Client errors (4xx)</div>
               </CardFooter>
             </Card>
 
@@ -271,13 +368,118 @@ export default function ClientOverviewPage() {
               </CardFooter>
             </Card>
           </div>
-
-          <div className='grid grid-cols-1 gap-4 lg:grid-cols-7'>
-            <div className='col-span-4'>
-              <AreaGraphStatusCodes />
+          <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-2'>
+            <div>
+              <Card className='@container/card'>
+                <CardHeader>
+                  <CardTitle className='mb-2'>Top Trending Issues</CardTitle>
+                  <CardDescription>
+                    Issues that have increased since the last audit
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {topTrendingUp.length ? (
+                    <ul className='space-y-2'>
+                      {topTrendingUp.map((it) => (
+                        <li
+                          key={it.key}
+                          className='flex items-center justify-between rounded-md border px-3 py-2'
+                        >
+                          <div className='flex min-w-0 items-center gap-2'>
+                            <IconAlertTriangle className='text-muted-foreground h-4 w-4' />
+                            <span
+                              className='truncate'
+                              title={prettyIssue(it.key)}
+                            >
+                              {prettyIssue(it.key)}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                            <Badge
+                              variant={
+                                it.severity === 'Alert'
+                                  ? 'destructive'
+                                  : it.severity === 'Warning'
+                                    ? 'default'
+                                    : 'secondary'
+                              }
+                            >
+                              {it.severity}
+                            </Badge>
+                            <span className='text-muted-foreground tabular-nums'>
+                              {it.prev} → {it.latest}
+                            </span>
+                            <span className='flex items-center font-medium text-red-600'>
+                              <IconArrowUpRight className='mr-1 h-4 w-4' />+
+                              {it.delta}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className='text-muted-foreground text-sm'>
+                      No increases since the last audit.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
-            <div className='col-span-3'>
-              <DoughnutGraph auditScore={latest?.score || 0} />
+            <div>
+              <Card className='@container/card'>
+                <CardHeader>
+                  <CardTitle className='mb-2'>Top Falling Issues</CardTitle>
+                  <CardDescription>
+                    Issues that have decreased since the last audit
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {topTrendingDown.length ? (
+                    <ul className='space-y-2'>
+                      {topTrendingDown.map((it) => (
+                        <li
+                          key={it.key}
+                          className='flex items-center justify-between rounded-md border px-3 py-2'
+                        >
+                          <div className='flex min-w-0 items-center gap-2'>
+                            <IconAlertTriangle className='text-muted-foreground h-4 w-4' />
+                            <span
+                              className='truncate'
+                              title={prettyIssue(it.key)}
+                            >
+                              {prettyIssue(it.key)}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2'>
+                            <Badge
+                              variant={
+                                it.severity === 'Alert'
+                                  ? 'destructive'
+                                  : it.severity === 'Warning'
+                                    ? 'default'
+                                    : 'secondary'
+                              }
+                            >
+                              {it.severity}
+                            </Badge>
+                            <span className='text-muted-foreground tabular-nums'>
+                              {it.prev} → {it.latest}
+                            </span>
+                            <span className='flex items-center font-medium text-green-600'>
+                              <IconArrowDownRight className='mr-1 h-4 w-4' />
+                              {it.delta}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className='text-muted-foreground text-sm'>
+                      No decreases since the last audit.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>

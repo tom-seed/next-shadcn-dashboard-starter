@@ -43,13 +43,14 @@ import {
   IconChevronRight,
   IconChevronsDown,
   IconLogout,
-  IconUserCircle,
-  IconAi
+  IconUserCircle
 } from '@tabler/icons-react';
 
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { Icons } from '../icons';
 import { OrgSwitcher } from '../org-switcher';
+
+type Client = { id: number; name: string };
 
 type NavItem = {
   title: string;
@@ -65,13 +66,8 @@ export default function AppSidebar() {
   const { user } = useUser();
   const router = useRouter();
 
-  const [clients, setClients] = React.useState<{ id: number; name: string }[]>(
-    []
-  );
-  const [activeClient, setActiveClient] = React.useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [activeClient, setActiveClient] = React.useState<Client | null>(null);
 
   // Dynamically generate navItems based on active client
   const navItems: NavItem[] = React.useMemo(() => {
@@ -107,23 +103,30 @@ export default function AppSidebar() {
     ];
   }, [activeClient]);
 
-  // Fetch clients on mount
   React.useEffect(() => {
     const loadClients = async () => {
       try {
         const res = await fetch('/api/client');
         const data = await res.json();
         setClients(data);
-        setActiveClient(data[0]); // Default to first client
+
+        const clientIdFromPath = pathname.split('/')[2];
+        const initialClient = data.find(
+          (client: Client) => String(client.id) === clientIdFromPath
+        );
+
+        setActiveClient(initialClient ?? data[0]); // Fallback to first if not found
       } catch (err) {
-        //console.error('Failed to load clients:', err);
+        // console.error('Failed to load clients:', err);
       }
     };
     loadClients();
-  }, []);
+  }, [pathname]);
 
   const handleClientSwitch = (clientId: string | number) => {
-    const client = clients.find((c) => c.id === Number(clientId));
+    const client: Client | undefined = clients.find(
+      (c) => c.id === Number(clientId)
+    );
     if (client) {
       setActiveClient(client);
       router.push(`/dashboard/${client.id}/overview`);

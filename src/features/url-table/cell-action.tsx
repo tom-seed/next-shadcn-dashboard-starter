@@ -9,7 +9,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { IconEdit, IconDotsVertical, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconDotsVertical } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Urls } from '@prisma/client';
@@ -49,9 +49,6 @@ export const UrlCellAction: React.FC<UrlCellActionProps> = ({
             }
           >
             <IconEdit className='mr-2 h-4 w-4' /> View
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpen(true)}>
-            <IconTrash className='mr-2 h-4 w-4' /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

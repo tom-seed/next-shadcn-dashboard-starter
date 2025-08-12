@@ -1,4 +1,3 @@
-// FILE: src/features/url-table/table.tsx
 'use client';
 
 import {
@@ -41,7 +40,13 @@ export function UrlTable<TData, TValue>({
   const pageCount = Math.ceil(totalItems / (perPage || 1)) || 1;
 
   const [columnVisibility, setColumnVisibility] = useState({});
-  const [columnSizing, setColumnSizing] = useState({});
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({
+    url: 420,
+    metaTitle: 280,
+    metaDescription: 420,
+    canonical: 360,
+    status: 120
+  });
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [columnResizeMode, setColumnResizeMode] =
     useState<ColumnResizeMode>('onChange');
@@ -66,6 +71,7 @@ export function UrlTable<TData, TValue>({
     shallow: false,
     debounceMs: 500,
     enableSorting: true,
+    enableMultiSort: true,
     enableColumnFilters: true,
     columnResizeMode,
     columnResizeDirection,

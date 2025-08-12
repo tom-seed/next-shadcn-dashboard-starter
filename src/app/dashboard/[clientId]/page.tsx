@@ -6,7 +6,7 @@ import FormCardSkeleton from '@/components/form-card-skeleton';
 import UrlViewPage from '@/features/url-table/url-view-page';
 
 export const metadata = {
-  title: 'Dashboard : URL View'
+  title: 'Dashboard | URL View | Atlas'
 };
 
 interface PageProps {

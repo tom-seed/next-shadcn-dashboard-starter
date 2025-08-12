@@ -16,11 +16,9 @@ export default async function Page({ params }: PageProps) {
   const { clientId, urlId } = await params;
   return (
     <PageContainer scrollable>
-      <div className='flex-1 space-y-4'>
-        <Suspense fallback={<FormCardSkeleton />}>
-          <UrlViewPage clientId={clientId} urlId={urlId} />
-        </Suspense>
-      </div>
+      <Suspense fallback={<FormCardSkeleton />}>
+        <UrlViewPage clientId={clientId} urlId={urlId} />
+      </Suspense>
     </PageContainer>
   );
 }
