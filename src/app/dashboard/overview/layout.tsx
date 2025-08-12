@@ -1,10 +1,11 @@
+// app/dashboard/overview/layout.tsx
 import PageContainer from '@/components/layout/page-container';
 import { Card } from '@/components/ui/card';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { Heading } from '@/components/ui/heading';
 import { Button } from '@/components/ui/button';
-import { headers } from 'next/headers';
+import { getClientsOverview } from '@/lib/getClientOverview';
 
 function formatDateTime(date?: Date | string | null) {
   if (!date) return '—';
@@ -23,17 +24,9 @@ function formatDateTime(date?: Date | string | null) {
 }
 
 export default async function OverViewLayout() {
-  const h = await headers();
-  const proto = (h.get('x-forwarded-proto') ?? 'http').split(',')[0];
-  const host = h.get('host') ?? 'localhost:3000';
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${proto}://${host}`;
+  const data = await getClientsOverview();
 
-  const res = await fetch(`${baseUrl}/api/client/dashboard/clients/overview`, {
-    cache: 'no-store'
-  });
-
-  if (!res.ok) {
-    // Fallback to empty list on API error
+  if (!data || data.length === 0) {
     return (
       <PageContainer>
         <div className='flex w-full flex-col space-y-4'>
@@ -47,15 +40,11 @@ export default async function OverViewLayout() {
             </Button>
           </div>
           <Separator />
-          <div className='text-muted-foreground text-sm'>
-            Failed to load clients.
-          </div>
+          <div className='text-muted-foreground text-sm'>No clients found.</div>
         </div>
       </PageContainer>
     );
   }
-
-  const { data } = await res.json();
 
   return (
     <PageContainer>
@@ -72,10 +61,11 @@ export default async function OverViewLayout() {
         <Separator />
 
         <div className='w-full space-y-4'>
-          {data.map((client: any) => {
-            const pagesCrawled = client.latestCrawl?.urlsCrawled ?? 0;
+          {data.map((client) => {
+            const pagesCrawled =
+              client.crawls?.[0]?.audit?.pages_200_response ?? 0;
             const lastCrawl = formatDateTime(
-              client.latestCrawl?.createdAt ?? null
+              client.crawls?.[0]?.createdAt ?? null
             );
 
             return (
@@ -109,7 +99,7 @@ export default async function OverViewLayout() {
                         Audit Score
                       </span>
                       <span className='text-sm font-medium'>
-                        {client.latestCrawl?.auditScore ?? 'N/A'}
+                        {client.crawls?.[0]?.audit?.score ?? 'N/A'}
                       </span>
                     </div>
                   </div>
