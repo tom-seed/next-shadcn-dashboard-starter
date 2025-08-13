@@ -12,7 +12,7 @@ export async function GET(
   const issueKey = rawIssueKey.replaceAll('-', '_'); // match your DB schema
 
   const defaultResponse = {
-    urls: [],
+    issues: [],
     totalCount: 0,
     page: 1,
     perPage: 10
@@ -52,7 +52,7 @@ export async function GET(
           issueKey
         },
         include: {
-          url: true // join with URL for actual `url.url` string
+          url: { select: { id: true, url: true } }
         },
         skip,
         take: perPage
@@ -67,6 +67,7 @@ export async function GET(
 
     const formattedIssues = issues.map((issue) => ({
       id: issue.id,
+      urlId: issue.url?.id ?? null,
       url: issue.url?.url ?? '(URL missing)'
     }));
 
@@ -77,7 +78,6 @@ export async function GET(
       perPage
     });
   } catch (err) {
-    console.error('❌ API error:', err);
     return NextResponse.json(
       { ...defaultResponse, error: 'Internal Server Error' },
       { status: 500 }

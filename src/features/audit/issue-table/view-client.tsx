@@ -12,6 +12,7 @@ import {
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { AuditIssueTable } from './table';
 import { getAuditIssueColumns } from './columns';
+import type { AuditIssueRow } from './columns';
 import {
   Updater,
   SortingState,
@@ -64,11 +65,6 @@ const searchParamDefs = {
   sort: parseSortParam.withDefault([])
 };
 
-export interface AuditIssueRow {
-  id: number;
-  url: string;
-}
-
 interface AuditIssueViewClientProps {
   clientId: number;
   issueKey: string;
@@ -99,8 +95,23 @@ export default function AuditIssueViewClient({
     );
     const result = await res.json();
 
-    const urls = Array.isArray(result.issues)
-      ? result.issues.map((issue: { id: number; url: string }) => issue)
+    const urls: AuditIssueRow[] = Array.isArray(result.issues)
+      ? result.issues
+          .map((issue: any) => ({
+            id: Number(issue.id),
+            url:
+              typeof issue.url === 'string'
+                ? issue.url
+                : String(issue.url?.url ?? ''),
+            urlId:
+              issue.urlId ??
+              issue.url_id ??
+              issue.urlIdFromJoin ??
+              issue.url?.id ??
+              undefined,
+            clientId
+          }))
+          .filter((row: AuditIssueRow) => !!row.url)
       : [];
 
     setData(urls);

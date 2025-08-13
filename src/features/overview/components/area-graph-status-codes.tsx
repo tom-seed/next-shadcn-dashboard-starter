@@ -17,7 +17,7 @@ import {
   ChartTooltipContent
 } from '@/components/ui/chart';
 import { IconTrendingUp } from '@tabler/icons-react';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { useParams } from 'next/navigation';
 
 const chartKeys = ['2xx', '3xx', '4xx', '5xx'] as const;
@@ -98,6 +98,14 @@ export function AreaGraphStatusCodes() {
               axisLine={false}
               tickMargin={8}
               minTickGap={32}
+            />
+            <YAxis
+              domain={[0, 'auto']}
+              tickCount={5}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={10}
+              allowDataOverflow={true}
             />
             <ChartTooltip
               cursor={false}

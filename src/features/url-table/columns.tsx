@@ -79,7 +79,14 @@ export function getUrlColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='Status' />
       ),
-      cell: ({ cell }) => <span>{(cell.getValue() as number) ?? 'N/A'}</span>,
+      cell: ({ cell }) => (
+        <span
+          className='block max-w-[400px] truncate'
+          title={(cell.getValue() as number).toString() ?? 'N/A'}
+        >
+          {(cell.getValue() as number) ?? 'N/A'}
+        </span>
+      ),
       enableColumnFilter: true,
       enableSorting: true,
       enableResizing: true,
@@ -96,7 +103,14 @@ export function getUrlColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='Canonical' />
       ),
-      cell: ({ cell }) => <span>{(cell.getValue() as string) || 'N/A'}</span>,
+      cell: ({ cell }) => (
+        <span
+          className='block max-w-[400px] truncate'
+          title={(cell.getValue() as string) || 'N/A'}
+        >
+          {(cell.getValue() as string) || 'N/A'}
+        </span>
+      ),
       enableColumnFilter: true,
       enableSorting: true,
       enableResizing: true,

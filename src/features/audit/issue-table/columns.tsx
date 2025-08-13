@@ -3,10 +3,13 @@
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTableColumnHeader } from '@/components/ui/table/data-table-column-header';
 import { Text } from 'lucide-react';
+import { UrlCellAction } from './cell-action';
 
 export interface AuditIssueRow {
   id: number;
   url: string;
+  urlId?: number;
+  clientId: number;
 }
 
 export function getAuditIssueColumns(): ColumnDef<
@@ -38,6 +41,16 @@ export function getAuditIssueColumns(): ColumnDef<
         variant: 'text',
         icon: Text
       }
+    },
+    {
+      id: 'actions',
+      header: () => null,
+      cell: ({ row }) => (
+        <UrlCellAction
+          clientId={row.original.clientId}
+          urlId={row.original.urlId}
+        />
+      )
     }
   ];
 }

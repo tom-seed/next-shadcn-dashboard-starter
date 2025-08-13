@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
 import PageContainer from '@/components/layout/page-container';
+import { AuditLoadingSpinner } from '@/components/ui/audit-loading-spinner';
 
 type Props = {
   clientId: string;
@@ -23,7 +24,12 @@ export default function AuditComparisonView({ clientId }: Props) {
       });
   }, [clientId]);
 
-  if (!latest) return <div>Loading audit data...</div>;
+  if (!latest)
+    return (
+      <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>
+        <AuditLoadingSpinner />
+      </div>
+    );
 
   const renderRow = (label: string, key: string, link?: string) => {
     const latestVal = latest?.[key] ?? 0;
@@ -58,6 +64,11 @@ export default function AuditComparisonView({ clientId }: Props) {
           )}
           {previousVal <= 0 && latestVal > 0 && (
             <span className='ml-2 text-red-600 dark:text-red-400'>New</span>
+          )}
+          {previousVal > 0 && latestVal <= 0 && (
+            <span className='ml-2 text-green-600 dark:text-green-400'>
+              Fixed
+            </span>
           )}
         </td>
         <td className='py-2 text-center'>{previousVal}</td>

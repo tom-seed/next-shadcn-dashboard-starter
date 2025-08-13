@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   Card,
   CardDescription,
@@ -32,90 +32,18 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Heading } from '@/components/ui/heading';
+import { useAuditStream } from '@/features/overview/hooks/use-audit-stream';
 
 // Main component for the client overview page
-
 export default function ClientOverviewPage() {
   const { clientId } = useParams();
-  const [client, setClient] = useState<{
-    id: number;
-    name: string;
-    url: string;
-  } | null>(null);
-  const [latest, setLatest] = useState<any>(null);
-  const [previous, setPrevious] = useState<any>(null);
-
-  useEffect(() => {
-    if (!clientId) return;
-
-    let isCancelled = false;
-    let eventSource: EventSource;
-
-    const fetchClient = async () => {
-      try {
-        const res = await fetch(`/api/client/${clientId}`);
-        const clientData = await res.json();
-        if (!isCancelled) setClient(clientData);
-      } catch {}
-    };
-
-    const checkLatestAudit = async () => {
-      try {
-        const res = await fetch(`/api/client/${clientId}/audits/latest`);
-        if (res.ok) {
-          const { latest, previous } = await res.json();
-          if (!isCancelled && latest) {
-            setLatest(latest);
-            setPrevious(previous);
-            return true;
-          }
-        }
-      } catch {
-        // ignore
-      }
-      return false;
-    };
-
-    const listenForAudit = () => {
-      eventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_NODE_API}/sse/events?clientId=${clientId}`
-      );
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'audit_complete') {
-            setLatest(data.latest);
-            setPrevious(data.previous);
-            eventSource.close();
-          }
-        } catch {
-          // ignore
-        }
-      };
-
-      eventSource.onerror = () => {
-        eventSource.close();
-      };
-    };
-
-    fetchClient();
-    checkLatestAudit().then((hasAudit) => {
-      if (!hasAudit && !isCancelled) {
-        listenForAudit();
-      }
-    });
-
-    return () => {
-      isCancelled = true;
-      if (eventSource) eventSource.close();
-    };
-  }, [clientId]);
+  const { client, latest, previous, loading } = useAuditStream(clientId as any);
 
   // --- Helpers for issue deltas & labels ---
   const EXCLUDE_KEYS = new Set([
     'id',
     'clientId',
+    'crawlId',
     'createdAt',
     'updatedAt',
     'score',
@@ -124,6 +52,8 @@ export default function ClientOverviewPage() {
     'pages_4xx_response',
     'pages_5xx_response'
   ]);
+
+  const issueKeyToPath = (k: string) => k.replace(/_/g, '-');
 
   type Severity = 'Alert' | 'Warning' | 'Opportunity';
   const getSeverity = (k: string): Severity => {
@@ -253,9 +183,10 @@ export default function ClientOverviewPage() {
   const lastCrawlClean = latest?.createdAt
     ? new Date(latest.createdAt).toLocaleString()
     : 'N/A';
+
   return (
     <PageContainer>
-      {!latest ? (
+      {loading || !latest ? (
         <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>
           <CrawlLoadingSpinner />
         </div>
@@ -368,6 +299,8 @@ export default function ClientOverviewPage() {
               </CardFooter>
             </Card>
           </div>
+
+          {/* ROW 3: Trending lists */}
           <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-2'>
             <div>
               <Card className='@container/card'>
@@ -387,21 +320,22 @@ export default function ClientOverviewPage() {
                         >
                           <div className='flex min-w-0 items-center gap-2'>
                             <IconAlertTriangle className='text-muted-foreground h-4 w-4' />
-                            <span
-                              className='truncate'
+                            <Link
+                              href={`/dashboard/${clientId}/audits/issues/${issueKeyToPath(it.key)}`}
+                              className='text-primary truncate hover:underline'
                               title={prettyIssue(it.key)}
                             >
                               {prettyIssue(it.key)}
-                            </span>
+                            </Link>
                           </div>
                           <div className='flex items-center gap-2'>
                             <Badge
-                              variant={
+                              className={
                                 it.severity === 'Alert'
-                                  ? 'destructive'
+                                  ? 'bg-red-500 text-white'
                                   : it.severity === 'Warning'
-                                    ? 'default'
-                                    : 'secondary'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-blue-500 text-white'
                               }
                             >
                               {it.severity}
@@ -443,21 +377,22 @@ export default function ClientOverviewPage() {
                         >
                           <div className='flex min-w-0 items-center gap-2'>
                             <IconAlertTriangle className='text-muted-foreground h-4 w-4' />
-                            <span
-                              className='truncate'
+                            <Link
+                              href={`/dashboard/${clientId}/audits/issues/${issueKeyToPath(it.key)}`}
+                              className='text-primary truncate hover:underline'
                               title={prettyIssue(it.key)}
                             >
                               {prettyIssue(it.key)}
-                            </span>
+                            </Link>
                           </div>
                           <div className='flex items-center gap-2'>
                             <Badge
-                              variant={
+                              className={
                                 it.severity === 'Alert'
-                                  ? 'destructive'
+                                  ? 'bg-red-500 text-white'
                                   : it.severity === 'Warning'
-                                    ? 'default'
-                                    : 'secondary'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-blue-500 text-white'
                               }
                             >
                               {it.severity}
