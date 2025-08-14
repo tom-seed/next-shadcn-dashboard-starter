@@ -16,6 +16,7 @@ export async function getClientsOverview() {
         select: {
           id: true,
           createdAt: true,
+          state: true,
           audit: {
             select: {
               score: true,

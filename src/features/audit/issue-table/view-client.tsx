@@ -48,6 +48,10 @@ import {
   Heading5Duplicate,
   Heading6Duplicate
 } from '../issue-descriptions/headings';
+import {
+  MissingCanonical,
+  Canonicalised
+} from '../issue-descriptions/canonicals';
 
 const parseSortParam = createParser<string[]>({
   parse: (value): string[] => {
@@ -214,7 +218,8 @@ export default function AuditIssueViewClient({
       {issueKey === 'pages_with_duplicate_h4s' && <Heading4Duplicate />}
       {issueKey === 'pages_with_duplicate_h5s' && <Heading5Duplicate />}
       {issueKey === 'pages_with_duplicate_h6s' && <Heading6Duplicate />}
-      {}
+      {issueKey === 'pages_missing_canonical' && <MissingCanonical />}
+      {issueKey === 'pages_canonicalised' && <Canonicalised />}
       <AuditIssueTable
         data={data}
         totalItems={totalItems}

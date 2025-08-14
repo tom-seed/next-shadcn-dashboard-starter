@@ -109,13 +109,15 @@ export default function AppSidebar() {
         const res = await fetch('/api/client');
         const data = await res.json();
         setClients(data);
-
+        const alphabeticallySortedClients = data.sort((a: Client, b: Client) =>
+          a.name.localeCompare(b.name)
+        );
         const clientIdFromPath = pathname.split('/')[2];
-        const initialClient = data.find(
+        const initialClient = alphabeticallySortedClients.find(
           (client: Client) => String(client.id) === clientIdFromPath
         );
 
-        setActiveClient(initialClient ?? data[0]); // Fallback to first if not found
+        setActiveClient(initialClient ?? alphabeticallySortedClients[0]); // Fallback to first if not found
       } catch (err) {
         // console.error('Failed to load clients:', err);
       }
@@ -179,7 +181,7 @@ export default function AppSidebar() {
                               asChild
                               isActive={pathname === subItem.url}
                             >
-                              <Link href={subItem.url}>
+                              <Link prefetch={false} href={subItem.url}>
                                 <span>{subItem.title}</span>
                               </Link>
                             </SidebarMenuSubButton>
@@ -196,7 +198,7 @@ export default function AppSidebar() {
                     tooltip={item.title}
                     isActive={isActive}
                   >
-                    <Link href={item.url}>
+                    <Link prefetch={false} href={item.url}>
                       <Icon />
                       <div className='flex w-full items-center justify-between'>
                         <span>{item.title}</span>
