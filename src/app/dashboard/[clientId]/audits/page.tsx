@@ -9,7 +9,7 @@ export default async function Page({
 }) {
   const { clientId } = await params;
   return (
-    <PageContainer scrollable>
+    <PageContainer>
       <AuditComparisonView clientId={clientId} />
     </PageContainer>
   );

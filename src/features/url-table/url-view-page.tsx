@@ -181,7 +181,7 @@ export default async function UrlViewPage({
                 </div>
                 <div>
                   <span className='text-sm font-medium'>Canonical:</span>
-                  <div className='text-muted-foreground text-sm'>
+                  <div className='text-muted-foreground max-w-[70vw] truncate text-sm md:max-w-[50vw] xl:max-w-[40vw]'>
                     {url.canonical || 'N/A'}
                   </div>
                 </div>
@@ -196,7 +196,7 @@ export default async function UrlViewPage({
                 <span className='text-base font-semibold'>Headings</span>
               </div>
               {/* Headings content */}
-              <CardContent className='space-y-4'>
+              <CardContent className='space-y-2 p-4'>
                 <div>
                   <span className='text-sm font-medium'>H1 Tags</span>
                   {normalizeHeadings(url.h1).length ? (
@@ -210,7 +210,9 @@ export default async function UrlViewPage({
                       ))}
                     </ul>
                   ) : (
-                    <div className='text-muted-foreground mt-2'>N/A</div>
+                    <div className='text-muted-foreground mt-2 text-sm'>
+                      No H1 Tags Found
+                    </div>
                   )}
                 </div>
                 <div>
@@ -226,7 +228,9 @@ export default async function UrlViewPage({
                       ))}
                     </ul>
                   ) : (
-                    <div className='text-muted-foreground mt-2'>N/A</div>
+                    <div className='text-muted-foreground mt-2 text-sm'>
+                      No H2 Tags Found
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -242,14 +246,14 @@ export default async function UrlViewPage({
               {alerts.length ? (
                 <div className='flex flex-wrap gap-2'>
                   {alerts.map((issue, idx) => (
-                    <Badge key={idx} variant='destructive'>
+                    <Badge key={idx} className='bg-red-500 text-white'>
                       {issueMap(issue.issueKey, issue.issueKey) ??
                         issue.issueKey}
                     </Badge>
                   ))}
                 </div>
               ) : (
-                <span className='text-muted-foreground'>
+                <span className='text-muted-foreground text-sm'>
                   No alerts detected
                 </span>
               )}
@@ -264,14 +268,14 @@ export default async function UrlViewPage({
               {warnings.length ? (
                 <div className='flex flex-wrap gap-2'>
                   {warnings.map((issue, idx) => (
-                    <Badge key={idx}>
+                    <Badge key={idx} className='bg-orange-500 text-white'>
                       {issueMap(issue.issueKey, issue.issueKey) ??
                         issue.issueKey}
                     </Badge>
                   ))}
                 </div>
               ) : (
-                <span className='text-muted-foreground'>
+                <span className='text-muted-foreground text-sm'>
                   No warnings detected
                 </span>
               )}
@@ -286,14 +290,14 @@ export default async function UrlViewPage({
               {opportunities.length ? (
                 <div className='flex flex-wrap gap-2'>
                   {opportunities.map((issue, idx) => (
-                    <Badge key={idx} variant='secondary'>
+                    <Badge key={idx} className='bg-blue-500 text-white'>
                       {issueMap(issue.issueKey, issue.issueKey) ??
                         issue.issueKey}
                     </Badge>
                   ))}
                 </div>
               ) : (
-                <span className='text-muted-foreground'>
+                <span className='text-muted-foreground text-sm'>
                   No opportunities detected
                 </span>
               )}

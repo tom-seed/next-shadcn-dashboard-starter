@@ -12,27 +12,26 @@ model Client {
   name        String
   url         String?
   cron        String?
-  crawls      Crawl[]
-  urls        Urls[]
   audits      Audit[]
   auditIssues AuditIssue[]
+  crawls      Crawl[]
+  urls        Urls[]
 }
 
 model Crawl {
-  id        Int      @id @default(autoincrement())
-  client    Client   @relation(fields: [clientId], references: [id])
+  id        Int        @id @default(autoincrement())
   clientId  Int
   url       String
-  createdAt DateTime @default(now())
-  urls      Urls[]
+  createdAt DateTime   @default(now())
+  state     CrawlState @default(STARTED)
   audit     Audit?
+  client    Client     @relation(fields: [clientId], references: [id])
+  urls      Urls[]
 }
 
 model Urls {
-  id                         Int          @id @default(autoincrement())
-  client                     Client       @relation(fields: [clientId], references: [id])
+  id                         Int            @id @default(autoincrement())
   clientId                   Int
-  crawl                      Crawl?       @relation(fields: [crawlId], references: [id])
   crawlId                    Int?
   url                        String
   status                     Int?
@@ -40,8 +39,8 @@ model Urls {
   redirectTarget             String?
   canonical                  String?
   canonicalStatus            Int?
-  isSelfReferencingCanonical Boolean      @default(false)
-  isCanonicalised            Boolean      @default(false)
+  isSelfReferencingCanonical Boolean        @default(false)
+  isCanonicalised            Boolean        @default(false)
   metaTitle                  String?
   metaDescription            String?
   internalLinks              String[]
@@ -52,69 +51,65 @@ model Urls {
   h4                         String[]
   h5                         String[]
   h6                         String[]
-  auditIssues AuditIssue[]
-
-  sourceLinks InternalLink[] @relation("SourceLinks")
-  targetLinks InternalLink[] @relation("TargetLinks")
-
-  createdAt DateTime @default(now())
+  createdAt                  DateTime       @default(now())
+  auditIssues                AuditIssue[]
+  sourceLinks                InternalLink[] @relation("SourceLinks")
+  targetLinks                InternalLink[] @relation("TargetLinks")
+  client                     Client         @relation(fields: [clientId], references: [id])
+  crawl                      Crawl?         @relation(fields: [crawlId], references: [id])
 }
 
 model Audit {
-  id        Int      @id @default(autoincrement())
-  crawl     Crawl    @relation(fields: [crawlId], references: [id])
-  crawlId   Int      @unique
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  Int
-  createdAt DateTime @default(now())
-  score     Int?
-
-  issues AuditIssue[]
-
-  pages_missing_title       Int @default(0)
-  too_short_title           Int @default(0)
-  too_long_title            Int @default(0)
-  pages_missing_description Int @default(0)
-  too_short_description     Int @default(0)
-  too_long_description      Int @default(0)
-  pages_missing_h1          Int @default(0)
-  pages_with_multiple_h1s   Int @default(0)
-  pages_with_duplicate_h1s  Int @default(0)
-  pages_missing_h2          Int @default(0)
-  pages_with_multiple_h2s   Int @default(0)
-  pages_with_duplicate_h2s  Int @default(0)
-  pages_missing_h3          Int @default(0)
-  pages_with_multiple_h3s   Int @default(0)
-  pages_with_duplicate_h3s  Int @default(0)
-  pages_missing_h4          Int @default(0)
-  pages_with_multiple_h4s   Int @default(0)
-  pages_with_duplicate_h4s  Int @default(0)
-  pages_missing_h5          Int @default(0)
-  pages_with_multiple_h5s   Int @default(0)
-  pages_with_duplicate_h5s  Int @default(0)
-  pages_missing_h6          Int @default(0)
-  pages_with_multiple_h6s   Int @default(0)
-  pages_with_duplicate_h6s  Int @default(0)
-  pages_200_response        Int @default(0)
-  pages_3xx_response        Int @default(0)
-  pages_4xx_response        Int @default(0)
-  pages_5xx_response        Int @default(0)
+  id                        Int          @id @default(autoincrement())
+  crawlId                   Int          @unique
+  clientId                  Int
+  createdAt                 DateTime     @default(now())
+  pages_missing_title       Int          @default(0)
+  too_short_title           Int          @default(0)
+  too_long_title            Int          @default(0)
+  pages_missing_description Int          @default(0)
+  too_short_description     Int          @default(0)
+  too_long_description      Int          @default(0)
+  pages_missing_h1          Int          @default(0)
+  pages_with_multiple_h1s   Int          @default(0)
+  pages_with_duplicate_h1s  Int          @default(0)
+  pages_missing_h2          Int          @default(0)
+  pages_with_multiple_h2s   Int          @default(0)
+  pages_with_duplicate_h2s  Int          @default(0)
+  pages_missing_h3          Int          @default(0)
+  pages_with_multiple_h3s   Int          @default(0)
+  pages_with_duplicate_h3s  Int          @default(0)
+  pages_missing_h4          Int          @default(0)
+  pages_with_multiple_h4s   Int          @default(0)
+  pages_with_duplicate_h4s  Int          @default(0)
+  pages_missing_h5          Int          @default(0)
+  pages_with_multiple_h5s   Int          @default(0)
+  pages_with_duplicate_h5s  Int          @default(0)
+  pages_missing_h6          Int          @default(0)
+  pages_with_multiple_h6s   Int          @default(0)
+  pages_with_duplicate_h6s  Int          @default(0)
+  pages_200_response        Int          @default(0)
+  pages_3xx_response        Int          @default(0)
+  pages_4xx_response        Int          @default(0)
+  pages_5xx_response        Int          @default(0)
+  score                     Int?
+  pages_canonicalised       Int          @default(0)
+  pages_missing_canonical   Int          @default(0)
+  client                    Client       @relation(fields: [clientId], references: [id])
+  crawl                     Crawl        @relation(fields: [crawlId], references: [id])
+  issues                    AuditIssue[]
 }
 
 model AuditIssue {
-  id       Int    @id @default(autoincrement())
-  client   Client @relation(fields: [clientId], references: [id])
-  clientId Int
-
-  audit   Audit @relation(fields: [auditId], references: [id])
-  auditId Int
-
-  url   Urls @relation(fields: [urlId], references: [id])
-  urlId Int
-
-  issueKey String
-
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  auditId   Int
+  urlId     Int
+  issueKey  String
   createdAt DateTime @default(now())
+  audit     Audit    @relation(fields: [auditId], references: [id])
+  client    Client   @relation(fields: [clientId], references: [id])
+  url       Urls     @relation(fields: [urlId], references: [id])
 
   @@index([clientId])
   @@index([auditId])
@@ -122,17 +117,19 @@ model AuditIssue {
 }
 
 model InternalLink {
-  id Int @id @default(autoincrement())
-
-  source   Urls @relation("SourceLinks", fields: [sourceId], references: [id])
-  sourceId Int
-
+  id        Int    @id @default(autoincrement())
+  sourceId  Int
+  targetId  Int?
   targetUrl String
-
-  target   Urls? @relation("TargetLinks", fields: [targetId], references: [id])
-  targetId Int?
-
-  status Int?
+  status    Int?
+  source    Urls   @relation("SourceLinks", fields: [sourceId], references: [id])
+  target    Urls?  @relation("TargetLinks", fields: [targetId], references: [id])
 
   @@unique([sourceId, targetUrl])
+}
+
+enum CrawlState {
+  STARTED
+  ABORTED
+  COMPLETED
 }

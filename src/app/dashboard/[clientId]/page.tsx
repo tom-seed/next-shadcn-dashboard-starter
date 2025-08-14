@@ -8,7 +8,6 @@ import UrlViewPage from '@/features/url-table/url-view-page';
 export const metadata = {
   title: 'Dashboard | URL View | Atlas'
 };
-
 interface PageProps {
   params: Promise<{ clientId: string; urlId: string }>;
 }

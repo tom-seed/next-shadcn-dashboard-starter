@@ -12,6 +12,7 @@ import {
 import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { AuditIssueTable } from './table';
 import { getAuditIssueColumns } from './columns';
+import type { AuditIssueRow } from './columns';
 import {
   Updater,
   SortingState,
@@ -47,6 +48,10 @@ import {
   Heading5Duplicate,
   Heading6Duplicate
 } from '../issue-descriptions/headings';
+import {
+  MissingCanonical,
+  Canonicalised
+} from '../issue-descriptions/canonicals';
 
 const parseSortParam = createParser<string[]>({
   parse: (value): string[] => {
@@ -63,11 +68,6 @@ const searchParamDefs = {
   url: parseAsString.withDefault(''),
   sort: parseSortParam.withDefault([])
 };
-
-export interface AuditIssueRow {
-  id: number;
-  url: string;
-}
 
 interface AuditIssueViewClientProps {
   clientId: number;
@@ -99,8 +99,23 @@ export default function AuditIssueViewClient({
     );
     const result = await res.json();
 
-    const urls = Array.isArray(result.issues)
-      ? result.issues.map((issue: { id: number; url: string }) => issue)
+    const urls: AuditIssueRow[] = Array.isArray(result.issues)
+      ? result.issues
+          .map((issue: any) => ({
+            id: Number(issue.id),
+            url:
+              typeof issue.url === 'string'
+                ? issue.url
+                : String(issue.url?.url ?? ''),
+            urlId:
+              issue.urlId ??
+              issue.url_id ??
+              issue.urlIdFromJoin ??
+              issue.url?.id ??
+              undefined,
+            clientId
+          }))
+          .filter((row: AuditIssueRow) => !!row.url)
       : [];
 
     setData(urls);
@@ -203,7 +218,8 @@ export default function AuditIssueViewClient({
       {issueKey === 'pages_with_duplicate_h4s' && <Heading4Duplicate />}
       {issueKey === 'pages_with_duplicate_h5s' && <Heading5Duplicate />}
       {issueKey === 'pages_with_duplicate_h6s' && <Heading6Duplicate />}
-      {}
+      {issueKey === 'pages_missing_canonical' && <MissingCanonical />}
+      {issueKey === 'pages_canonicalised' && <Canonicalised />}
       <AuditIssueTable
         data={data}
         totalItems={totalItems}

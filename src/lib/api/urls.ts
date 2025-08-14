@@ -1,5 +1,3 @@
-// FILE: src/lib/api/urls.ts
-
 import { Urls } from '@prisma/client';
 import { PrismaClient } from '@prisma/client';
 
@@ -117,13 +115,21 @@ export async function getUrls(
 
 // Fetch single URL by ID
 export async function getUrlById(
-  clientId: string,
-  urlId: string
+  clientId: string | number | undefined,
+  urlId: string | number | undefined
 ): Promise<ExtendedUrl | null> {
-  const url = await prisma.urls.findUnique({
+  const clientIdNum = Number(clientId);
+  const urlIdNum = Number(urlId);
+
+  // Bail early if params are not valid (e.g., during Next prefetch)
+  if (!Number.isFinite(clientIdNum) || !Number.isFinite(urlIdNum)) {
+    return null;
+  }
+
+  const url = await prisma.urls.findFirst({
     where: {
-      id: Number(urlId),
-      clientId: Number(clientId)
+      id: urlIdNum,
+      clientId: clientIdNum
     },
     include: {
       auditIssues: true,
