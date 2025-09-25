@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import PageContainer from '@/components/layout/page-container';
@@ -20,28 +21,38 @@ export default function NewClientPage() {
   const [url, setUrl] = useState('');
   const [cron, setCron] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const handleSubmit = async () => {
+    setError(null);
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_NODE_API}/start-crawl`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, url })
-        }
-      );
+      const res = await fetch('/api/client', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url, cron })
+      });
 
-      const data = await res.json();
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error ?? 'Failed to create client');
+      }
 
-      if (!data.success) {
-        alert(data.error || 'Something went wrong');
+      const payload = await res.json();
+      const clientId = payload?.client?.id;
+
+      if (clientId) {
+        router.push(`/dashboard/${clientId}/overview`);
       } else {
-        window.location.href = data.redirectUrl;
+        setError(
+          'Client created, but we could not determine the redirect URL.'
+        );
       }
     } catch (err) {
-      alert('An unexpected error occurred.');
+      setError(
+        err instanceof Error ? err.message : 'An unexpected error occurred.'
+      );
     } finally {
       setLoading(false);
     }
@@ -55,6 +66,11 @@ export default function NewClientPage() {
           description='Create a new client for crawling'
         />
         <Card className='p-4'>
+          {error && (
+            <p className='mb-2 text-sm text-red-500' role='alert'>
+              {error}
+            </p>
+          )}
           <Input
             placeholder='Nike'
             value={name}
@@ -75,7 +91,7 @@ export default function NewClientPage() {
               <SelectItem value='monthly'>Monthly</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || !name.trim()}>
             {loading ? 'Crawling...' : 'Start Crawl'}
           </Button>
         </Card>

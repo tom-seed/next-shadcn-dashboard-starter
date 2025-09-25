@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
+import { auth } from '@clerk/nextjs/server';
+import { getClientMembershipsForUser } from '@/lib/auth/memberships';
 
 const prisma = new PrismaClient().$extends(withAccelerate());
 
@@ -23,8 +25,24 @@ type ClientWithCrawls = {
 };
 
 export async function GET() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
+    const memberships = await getClientMembershipsForUser(userId);
+    const allowedClientIds = memberships.map(
+      (membership) => membership.clientId
+    );
+
+    if (allowedClientIds.length === 0) {
+      return NextResponse.json({ data: [] });
+    }
+
     const clients = (await prisma.client.findMany({
+      where: { id: { in: allowedClientIds } },
       orderBy: { name: 'asc' },
       select: {
         id: true,
@@ -50,7 +68,7 @@ export async function GET() {
         }
       },
       cacheStrategy: { ttl: 60, swr: 60 * 10 }
-    })) as ClientWithCrawls[];
+    })) as unknown as ClientWithCrawls[];
 
     const data = clients.map((c) => {
       const latest = c.crawls?.[0] ?? null;

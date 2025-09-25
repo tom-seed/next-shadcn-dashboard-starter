@@ -27,9 +27,20 @@ export async function GET(
   }
 
   const { searchParams } = new URL(req.url);
-  const page = parseInt(searchParams.get('page') || '1');
-  const perPage = Math.min(parseInt(searchParams.get('perPage') || '10'), 50);
-  const skip = (page - 1) * perPage;
+  const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
+  const perPageParam = searchParams.get('perPage') || '10';
+  const parsedPerPage = parseInt(perPageParam);
+  const perPage =
+    Number.isNaN(parsedPerPage) || parsedPerPage <= 0
+      ? null
+      : Math.min(parsedPerPage, 100000);
+  const paginationArgs =
+    perPage === null
+      ? undefined
+      : ({
+          skip: (page - 1) * perPage,
+          take: perPage
+        } as const);
 
   try {
     const audit = await prisma.audit.findFirst({
@@ -54,8 +65,7 @@ export async function GET(
         include: {
           url: { select: { id: true, url: true } }
         },
-        skip,
-        take: perPage
+        ...(paginationArgs ?? {})
       }),
       prisma.auditIssue.count({
         where: {
@@ -75,7 +85,7 @@ export async function GET(
       issues: formattedIssues,
       totalCount,
       page,
-      perPage
+      perPage: perPage ?? totalCount
     });
   } catch (err) {
     return NextResponse.json(

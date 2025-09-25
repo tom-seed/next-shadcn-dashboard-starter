@@ -16,6 +16,27 @@ model Client {
   auditIssues AuditIssue[]
   crawls      Crawl[]
   urls        Urls[]
+  clerkOrganizationId String? @unique
+  memberships         ClientMembership[]
+}
+
+enum ClientRole {
+  INTERNAL_ADMIN
+  CLIENT_ADMIN
+  CLIENT_MEMBER
+}
+
+model ClientMembership {
+  id          Int        @id @default(autoincrement())
+  clientId    Int
+  clerkUserId String
+  role        ClientRole @default(CLIENT_MEMBER)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  client      Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, clerkUserId])
+  @@index([clerkUserId])
 }
 
 model Crawl {
