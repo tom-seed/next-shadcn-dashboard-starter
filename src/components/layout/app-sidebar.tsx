@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { SignOutButton } from '@clerk/nextjs';
+import type { ClientRole } from '@prisma/client';
 
 import {
   Sidebar,
@@ -50,7 +51,12 @@ import { UserAvatarProfile } from '@/components/user-avatar-profile';
 import { Icons } from '../icons';
 import { OrgSwitcher } from '../org-switcher';
 
-type Client = { id: number; name: string };
+type Client = {
+  id: number;
+  name: string;
+  role: ClientRole;
+  clerkOrganizationId: string | null;
+};
 
 type NavItem = {
   title: string;
@@ -106,12 +112,23 @@ export default function AppSidebar() {
   React.useEffect(() => {
     const loadClients = async () => {
       try {
-        const res = await fetch('/api/client');
-        const data = await res.json();
-        setClients(data);
-        const alphabeticallySortedClients = data.sort((a: Client, b: Client) =>
+        const res = await fetch('/api/client', { cache: 'no-store' });
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data: Client[] = await res.json();
+        const alphabeticallySortedClients = [...data].sort((a, b) =>
           a.name.localeCompare(b.name)
         );
+        setClients(alphabeticallySortedClients);
+
+        if (alphabeticallySortedClients.length === 0) {
+          setActiveClient(null);
+          return;
+        }
+
         const clientIdFromPath = pathname.split('/')[2];
         const initialClient = alphabeticallySortedClients.find(
           (client: Client) => String(client.id) === clientIdFromPath

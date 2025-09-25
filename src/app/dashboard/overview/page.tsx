@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { Heading } from '@/components/ui/heading';
 import { Button } from '@/components/ui/button';
-import { getClientsOverview } from '@/lib/getClientOverview';
-import { CrawlState } from '@prisma/client';
+import { getClientsOverviewForUser } from '@/lib/getClientOverview';
+import { CrawlState, ClientRole } from '@prisma/client';
 import { Badge } from '@/components/ui/badge';
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import { getClientMembershipsForUser } from '@/lib/auth/memberships';
 
 function formatDateTime(date?: Date | string | null) {
   if (!date) return '—';
@@ -37,7 +40,41 @@ function formatCrawlState(state: CrawlState) {
 }
 
 export default async function OverViewPage() {
-  const data = await getClientsOverview();
+  const { userId } = await auth();
+
+  if (!userId) {
+    redirect('/auth/sign-in');
+  }
+
+  const memberships = await getClientMembershipsForUser(userId);
+
+  if (!memberships.length) {
+    return (
+      <PageContainer>
+        <div className='flex w-full flex-col space-y-4'>
+          <Heading
+            title='No clients yet'
+            description='You do not have access to any clients. Contact an administrator to be added.'
+          />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  const ADMIN_ROLES = new Set<ClientRole>([
+    ClientRole.INTERNAL_ADMIN,
+    ClientRole.CLIENT_ADMIN
+  ]);
+
+  const hasAdminAccess = memberships.some((membership) =>
+    ADMIN_ROLES.has(membership.role)
+  );
+
+  if (!hasAdminAccess && memberships.length === 1) {
+    redirect(`/dashboard/${memberships[0].clientId}/overview`);
+  }
+
+  const data = await getClientsOverviewForUser(userId);
 
   if (!data || data.length === 0) {
     return (
@@ -48,9 +85,11 @@ export default async function OverViewPage() {
               title='Clients'
               description='All clients and their latest crawl snapshot.'
             />
-            <Button asChild>
-              <Link href='/new-client'>Add New Client</Link>
-            </Button>
+            {hasAdminAccess && (
+              <Button asChild>
+                <Link href='/new-client'>Add New Client</Link>
+              </Button>
+            )}
           </div>
           <Separator />
           <div className='text-muted-foreground text-sm'>No clients found.</div>
@@ -67,9 +106,11 @@ export default async function OverViewPage() {
             title='Clients'
             description='All clients and their latest crawl snapshot.'
           />
-          <Button asChild>
-            <Link href='/new-client'>Add New Client</Link>
-          </Button>
+          {hasAdminAccess && (
+            <Button asChild>
+              <Link href='/new-client'>Add New Client</Link>
+            </Button>
+          )}
         </div>
         <Separator />
 

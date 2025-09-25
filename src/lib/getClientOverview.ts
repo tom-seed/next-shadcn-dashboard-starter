@@ -1,15 +1,26 @@
 // lib/getClientsOverview.ts
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 
-const prisma = new PrismaClient();
-
-export async function getClientsOverview() {
+export async function getClientsOverviewForUser(clerkUserId: string) {
   return prisma.client.findMany({
+    where: {
+      memberships: {
+        some: {
+          clerkUserId
+        }
+      }
+    },
     select: {
       id: true,
       name: true,
       url: true,
       cron: true,
+      memberships: {
+        where: { clerkUserId },
+        select: {
+          role: true
+        }
+      },
       crawls: {
         orderBy: { createdAt: 'desc' },
         take: 1,

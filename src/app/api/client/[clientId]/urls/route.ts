@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
+import { auth } from '@clerk/nextjs/server';
+import { ensureClientAccess } from '@/lib/auth/memberships';
 
 const prisma = new PrismaClient().$extends(withAccelerate());
 
@@ -10,6 +12,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ clientId: string }> }
 ) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { clientId } = await params;
   const id = parseInt(clientId);
 
@@ -24,6 +32,15 @@ export async function GET(
     return NextResponse.json(
       { ...defaultResponse, error: 'Invalid client ID' },
       { status: 400 }
+    );
+  }
+
+  const membership = await ensureClientAccess(userId, id);
+
+  if (!membership) {
+    return NextResponse.json(
+      { ...defaultResponse, error: 'Forbidden' },
+      { status: 403 }
     );
   }
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
+import { auth } from '@clerk/nextjs/server';
+import { ensureClientAccess } from '@/lib/auth/memberships';
 
 const prisma = new PrismaClient().$extends(withAccelerate());
 
@@ -8,6 +10,12 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ clientId: string; issueKey: string }> }
 ) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const { clientId, issueKey: rawIssueKey } = await params;
 
   // Normalize from kebab-case and strip "_urls" suffix
@@ -28,6 +36,15 @@ export async function GET(
     return NextResponse.json(
       { ...defaultResponse, error: 'Invalid client ID' },
       { status: 400 }
+    );
+  }
+
+  const membership = await ensureClientAccess(userId, id);
+
+  if (!membership) {
+    return NextResponse.json(
+      { ...defaultResponse, error: 'Forbidden' },
+      { status: 403 }
     );
   }
 
@@ -84,6 +101,7 @@ export async function GET(
       perPage
     });
   } catch (err) {
+    // eslint-disable-next-line no-console
     console.error('❌ API error:', err);
     return NextResponse.json(
       { ...defaultResponse, error: 'Internal Server Error' },
