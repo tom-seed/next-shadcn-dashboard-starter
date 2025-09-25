@@ -44,27 +44,24 @@ export function verifyClerkWebhook(
     .map((entry) => entry.trim())
     .filter(Boolean);
 
-  const signatures: string[] = [];
-  let pendingVersion: string | null = null;
+  const versionTokens = segments.filter((segment) => segment.startsWith('v')); // e.g. ['v1'] or ['v1=abc']
+  const valueTokens = segments.filter((segment) => !segment.startsWith('v'));
 
-  for (const segment of segments) {
-    if (segment.includes('=')) {
-      const [version, value] = segment.split('=', 2);
+  const signatures: string[] = [];
+
+  for (const token of versionTokens) {
+    if (token.includes('=')) {
+      const [version, value] = token.split('=', 2);
       if (version === 'v1' && value) {
         signatures.push(value);
       }
-      pendingVersion = null;
-      continue;
     }
+  }
 
-    if (segment.startsWith('v')) {
-      pendingVersion = segment;
-      continue;
-    }
-
-    if (pendingVersion === 'v1') {
-      signatures.push(segment);
-      pendingVersion = null;
+  if (signatures.length === 0) {
+    // Handle format "v1,<signature>"
+    if (versionTokens.includes('v1') && valueTokens.length > 0) {
+      signatures.push(valueTokens[0]);
     }
   }
 
