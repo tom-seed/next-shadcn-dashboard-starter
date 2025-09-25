@@ -39,14 +39,34 @@ export function verifyClerkWebhook(
     .update(`${id}.${timestamp}.${payload}`)
     .digest('base64');
 
-  const signatures = signatureHeader
+  const segments = signatureHeader
     .split(',')
     .map((entry) => entry.trim())
-    .filter(Boolean)
-    .map((entry) => entry.split('=', 2))
-    .filter(([version]) => version === 'v1')
-    .map(([, value]) => value)
     .filter(Boolean);
+
+  const signatures: string[] = [];
+  let pendingVersion: string | null = null;
+
+  for (const segment of segments) {
+    if (segment.includes('=')) {
+      const [version, value] = segment.split('=', 2);
+      if (version === 'v1' && value) {
+        signatures.push(value);
+      }
+      pendingVersion = null;
+      continue;
+    }
+
+    if (segment.startsWith('v')) {
+      pendingVersion = segment;
+      continue;
+    }
+
+    if (pendingVersion === 'v1') {
+      signatures.push(segment);
+      pendingVersion = null;
+    }
+  }
 
   if (signatures.length === 0) {
     throw new ClerkWebhookError('No v1 signature in header');
