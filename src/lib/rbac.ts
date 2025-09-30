@@ -20,24 +20,20 @@ export type Client = {
 function extractRoles(claims: unknown): ClientRole[] {
   if (!claims || typeof claims !== 'object') return [];
 
-  const raw = (claims as Record<string, unknown>).roles;
+  // The JWT template adds custom claims under the `ext_claims` key.
+  const extClaims = (claims as Record<string, any>).ext_claims;
 
-  let roles: unknown[] = [];
-  if (Array.isArray(raw)) {
-    roles = raw as unknown[];
-  } else if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) roles = parsed as unknown[];
-    } catch {
-      // ignore parse errors → no roles
+  if (extClaims && typeof extClaims === 'object' && 'roles' in extClaims) {
+    const roles = extClaims.roles;
+    if (Array.isArray(roles)) {
+      const valid = new Set(Object.values(ClientRole) as string[]);
+      return roles.filter(
+        (r): r is ClientRole => typeof r === 'string' && valid.has(r)
+      );
     }
   }
 
-  const valid = new Set(Object.values(ClientRole) as string[]);
-  return roles.filter(
-    (r): r is ClientRole => typeof r === 'string' && valid.has(r)
-  );
+  return [];
 }
 
 /**
