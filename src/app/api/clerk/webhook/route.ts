@@ -17,11 +17,30 @@ interface ClerkMetadata {
   clientRole?: string;
 }
 
+interface ClerkOrganizationMembershipPayload {
+  organization_id?: string;
+  organization?: { id?: string };
+  public_metadata?: ClerkMetadata;
+  public_user_data?: { user_id?: string };
+  user_id?: string;
+  role?: string;
+}
+
 function parseClientRole(value: unknown): ClientRole {
   if (typeof value !== 'string') return ClientRole.CLIENT_MEMBER;
 
   if ((Object.values(ClientRole) as string[]).includes(value)) {
     return value as ClientRole;
+  }
+
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes('internal')) {
+    return ClientRole.INTERNAL_ADMIN;
+  }
+
+  if (normalized.includes('admin')) {
+    return ClientRole.CLIENT_ADMIN;
   }
 
   return ClientRole.CLIENT_MEMBER;
@@ -134,6 +153,27 @@ export async function POST(req: NextRequest) {
 
   const { type } = event;
 
+  const normalizeMembershipPayload = (
+    payload: any
+  ): ClerkOrganizationMembershipPayload | null => {
+    if (!payload || typeof payload !== 'object') return null;
+    const organization_id =
+      payload.organization_id ?? payload.organization?.id ?? undefined;
+    const user_id =
+      payload.user_id ?? payload.public_user_data?.user_id ?? undefined;
+
+    if (!organization_id || !user_id) {
+      return null;
+    }
+
+    return {
+      organization_id,
+      public_metadata: payload.public_metadata ?? {},
+      user_id,
+      role: payload.role
+    };
+  };
+
   switch (type) {
     case 'organization.created': {
       // Organization created - ensure client record exists
@@ -179,59 +219,55 @@ export async function POST(req: NextRequest) {
     }
 
     case 'organization.memberships.created':
-    case 'organization.memberships.updated': {
-      const data = event.data as {
-        organization_id?: string;
-        public_metadata?: ClerkMetadata;
-        user_id?: string;
-      };
-
-      if (!data.organization_id || !data.user_id) {
-        break;
-      }
+    case 'organizationMembership.created':
+    case 'organization.memberships.updated':
+    case 'organizationMembership.updated': {
+      const normalized = normalizeMembershipPayload(event.data);
+      if (!normalized) break;
 
       await upsertMembership({
-        clerkUserId: data.user_id,
-        organizationId: data.organization_id,
-        metadata: data.public_metadata ?? {}
+        clerkUserId: normalized.user_id!,
+        organizationId: normalized.organization_id!,
+        metadata: {
+          ...(normalized.public_metadata ?? {}),
+          clientRole:
+            normalized.public_metadata?.clientRole ??
+            normalized.role ??
+            undefined
+        }
       });
 
       break;
     }
 
-    case 'organization.memberships.deleted': {
-      const data = event.data as {
-        organization_id?: string;
-        user_id?: string;
-      };
-
-      if (!data.organization_id || !data.user_id) {
-        break;
-      }
+    case 'organization.memberships.deleted':
+    case 'organizationMembership.deleted': {
+      const normalized = normalizeMembershipPayload(event.data);
+      if (!normalized) break;
 
       await deleteMembership({
-        clerkUserId: data.user_id,
-        organizationId: data.organization_id
+        clerkUserId: normalized.user_id!,
+        organizationId: normalized.organization_id!
       });
 
       break;
     }
 
-    case 'organization.invitations.accepted': {
-      const data = event.data as {
-        organization_id?: string;
-        public_metadata?: ClerkMetadata;
-        user_id?: string;
-      };
-
-      if (!data.organization_id || !data.user_id) {
-        break;
-      }
+    case 'organization.invitations.accepted':
+    case 'organizationInvitation.accepted': {
+      const normalized = normalizeMembershipPayload(event.data);
+      if (!normalized) break;
 
       await upsertMembership({
-        clerkUserId: data.user_id,
-        organizationId: data.organization_id,
-        metadata: data.public_metadata ?? {}
+        clerkUserId: normalized.user_id!,
+        organizationId: normalized.organization_id!,
+        metadata: {
+          ...(normalized.public_metadata ?? {}),
+          clientRole:
+            normalized.public_metadata?.clientRole ??
+            normalized.role ??
+            undefined
+        }
       });
 
       break;
