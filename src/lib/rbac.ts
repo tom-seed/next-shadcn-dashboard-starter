@@ -19,42 +19,16 @@ export type Client = {
 function extractRoles(claims: unknown): ClientRole[] {
   if (!claims || typeof claims !== 'object') return [];
 
-  // Check for roles within the top-level public_metadata from the JWT template
-  const jwtMetadata = (claims as Record<string, unknown>).public_metadata as
-    | Record<string, unknown>
-    | undefined;
-  if (
-    jwtMetadata &&
-    typeof jwtMetadata === 'object' &&
-    'roles' in jwtMetadata
-  ) {
-    const roles = jwtMetadata.roles;
+  // The JWT template puts roles in `public_metadata`
+  const metadata = (claims as Record<string, any>).public_metadata;
+
+  if (metadata && typeof metadata === 'object' && 'roles' in metadata) {
+    const roles = metadata.roles;
     if (Array.isArray(roles)) {
       return roles.filter(
         (role): role is ClientRole => typeof role === 'string'
-      ) as ClientRole[];
+      );
     }
-  }
-
-  const candidate =
-    (claims as Record<string, unknown>).metadata ??
-    (claims as Record<string, unknown>).publicMetadata ??
-    (claims as Record<string, unknown>).privateMetadata;
-
-  if (candidate && typeof candidate === 'object' && 'roles' in candidate) {
-    const roles = (candidate as Record<string, unknown>).roles;
-    if (Array.isArray(roles)) {
-      return roles.filter(
-        (role): role is ClientRole => typeof role === 'string'
-      ) as ClientRole[];
-    }
-  }
-
-  const directRoles = (claims as Record<string, unknown>).roles;
-  if (Array.isArray(directRoles)) {
-    return directRoles.filter(
-      (role): role is ClientRole => typeof role === 'string'
-    ) as ClientRole[];
   }
 
   return [];
