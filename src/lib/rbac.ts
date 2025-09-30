@@ -94,7 +94,7 @@ export function canAccessClient({
  */
 export async function requireClientAccess(client: Client) {
   const { userId, orgId, sessionClaims } = await requireAuth();
-  const roles = sessionClaims?.roles as ClientRole[] | undefined;
+  const roles = parseRoles(sessionClaims?.roles);
   const orgMemberships = dedupe([
     orgId ?? undefined,
     ...extractOrgMemberships(sessionClaims)
@@ -133,25 +133,44 @@ export function canManageClient(
 }
 
 /** Require agency access for API routes; throws if denied */
+// Safely parse roles, which may be a stringified JSON array in the JWT claim
+function parseRoles(rawRoles: unknown): ClientRole[] {
+  if (Array.isArray(rawRoles)) {
+    return rawRoles as ClientRole[];
+  }
+  if (typeof rawRoles === 'string') {
+    try {
+      const parsed = JSON.parse(rawRoles);
+      if (Array.isArray(parsed)) {
+        return parsed as ClientRole[];
+      }
+    } catch {
+      // Fall through to return empty array if parsing fails
+    }
+  }
+  return [];
+}
+
+/** Require agency access for API routes; throws if denied */
 export async function requireApiAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = sessionClaims?.roles as ClientRole[] | undefined;
+  const roles = parseRoles(sessionClaims?.roles);
 
   if (!canManageClient(roles)) {
     throw new Error('Unauthorized: Agency access required');
   }
 
-  return roles || [];
+  return roles;
 }
 
 /** Require agency access for pages; redirects if denied */
 export async function requireAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = sessionClaims?.roles as ClientRole[] | undefined;
+  const roles = parseRoles(sessionClaims?.roles);
 
   if (!canManageClient(roles)) {
     redirect('/dashboard/overview');
   }
 
-  return roles || [];
+  return roles;
 }
