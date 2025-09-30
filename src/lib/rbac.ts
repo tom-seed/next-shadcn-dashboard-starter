@@ -184,6 +184,25 @@ export function getRolesFromClaims(sessionClaims: unknown): ClientRole[] {
  * Requires that the user has agency access.
  * Redirects to /dashboard if access is denied.
  */
+/**
+ * Requires that the user has agency access for API routes.
+ * Throws an error if access is denied.
+ */
+export async function requireApiAgencyAccess() {
+  const { sessionClaims } = await requireAuth();
+  const roles = extractRoles(sessionClaims);
+
+  if (!canManageClient(roles)) {
+    throw new Error('Unauthorized: Agency access required');
+  }
+
+  return roles;
+}
+
+/**
+ * Requires that the user has agency access.
+ * Redirects to /dashboard if access is denied.
+ */
 export async function requireAgencyAccess() {
   const { sessionClaims } = await requireAuth();
   const roles = extractRoles(sessionClaims);

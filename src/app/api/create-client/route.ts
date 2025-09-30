@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { clerkClient } from '@clerk/nextjs/server';
-import { requireAgencyAccess } from '@/lib/rbac';
+import { requireApiAgencyAccess } from '@/lib/rbac';
 import { getBackendAuthHeaders } from '@/lib/auth';
 import prisma from '@/lib/db';
 
@@ -26,10 +26,7 @@ const ensureUniqueSlug = (baseSlug: string) =>
 export async function POST(request: Request) {
   try {
     // Verify user has agency access
-    const roles = await requireAgencyAccess();
-    if (!roles.length) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
+    await requireApiAgencyAccess();
 
     // Parse and validate request body
     const body = await request.json();
