@@ -1,6 +1,55 @@
+// auth/access.ts
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth';
-import { ClientRole } from '@prisma/client';
+import type { ClientRole } from '@prisma/client';
+
+// Safely parse roles from Clerk session claims.
+// Handles:
+// - ["INTERNAL_ADMIN"]
+// - { roles: ["INTERNAL_ADMIN"] }
+// - JSON strings of either of the above
+// - CSV fallback: "INTERNAL_ADMIN,AGENCY_ADMIN"
+export function parseRoles(rawRoles: unknown): ClientRole[] {
+  // Already an array
+  if (Array.isArray(rawRoles)) {
+    return rawRoles as ClientRole[];
+  }
+
+  // Object wrapper: { roles: [...] }
+  if (rawRoles && typeof rawRoles === 'object') {
+    const maybe = (rawRoles as Record<string, unknown>).roles;
+    if (Array.isArray(maybe)) {
+      return maybe as ClientRole[];
+    }
+  }
+
+  // String variants
+  if (typeof rawRoles === 'string') {
+    // Try JSON first
+    try {
+      const parsed = JSON.parse(rawRoles);
+      if (Array.isArray(parsed)) return parsed as ClientRole[];
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        Array.isArray((parsed as any).roles)
+      ) {
+        return (parsed as any).roles as ClientRole[];
+      }
+    } catch {
+      // not JSON, fall through
+    }
+
+    // CSV fallback: "INTERNAL_ADMIN,AGENCY_ADMIN"
+    const csv = rawRoles
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (csv.length) return csv as ClientRole[];
+  }
+
+  return [];
+}
 
 export type Client = {
   id: number;
@@ -12,35 +61,21 @@ export type Client = {
   updatedAt?: Date;
 };
 
-/**
- * Extract roles from Clerk session claims.
- * NOTE: your JWT template serializes roles as a stringified JSON array.
- * e.g. roles: '["INTERNAL_ADMIN"]'
- */
-
-/**
- * Extract organization memberships from Clerk session claims.
- * Supports orgs at claims.orgs or metadata.orgIds/publicMetadata.orgIds/etc.
- */
 function extractOrgMemberships(claims: unknown): string[] {
   if (!claims || typeof claims !== 'object') return [];
 
   const orgs = (claims as Record<string, unknown>).orgs;
   if (Array.isArray(orgs)) {
-    return orgs.filter((orgId): orgId is string => typeof orgId === 'string');
+    return orgs.filter((id): id is string => typeof id === 'string');
   }
 
-  const metadata =
-    (claims as Record<string, unknown>).metadata ??
-    (claims as Record<string, unknown>).publicMetadata ??
-    (claims as Record<string, unknown>).privateMetadata;
+  const c = claims as Record<string, any>;
+  const metadata = c.metadata ?? c.publicMetadata ?? c.privateMetadata;
 
   if (metadata && typeof metadata === 'object' && 'orgIds' in metadata) {
-    const orgIds = (metadata as Record<string, unknown>).orgIds;
+    const orgIds = (metadata as any).orgIds;
     if (Array.isArray(orgIds)) {
-      return orgIds.filter(
-        (orgId): orgId is string => typeof orgId === 'string'
-      );
+      return orgIds.filter((id): id is string => typeof id === 'string');
     }
   }
 
@@ -51,9 +86,8 @@ function dedupe<T>(inputs: (T | null | undefined)[]): T[] {
   return Array.from(new Set(inputs.filter(Boolean) as T[]));
 }
 
-/** Agency/internal roles */
 function hasAgencyRole(roles: ClientRole[] | undefined | null): boolean {
-  if (!roles) return false;
+  if (!Array.isArray(roles)) return false;
   const agencyRoles: ClientRole[] = [
     'AGENCY_ADMIN',
     'AGENCY_ANALYST',
@@ -62,11 +96,6 @@ function hasAgencyRole(roles: ClientRole[] | undefined | null): boolean {
   return roles.some((role) => agencyRoles.includes(role));
 }
 
-/**
- * Determines if a user can access a specific client.
- * Agency roles → global access.
- * Otherwise, user must belong to the client's Clerk org.
- */
 export function canAccessClient({
   client,
   userRoles,
@@ -77,7 +106,7 @@ export function canAccessClient({
   userRoles: ClientRole[] | undefined | null;
   activeOrgId?: string | null;
   memberships: string[];
-}) {
+}): boolean {
   if (hasAgencyRole(userRoles)) return true;
 
   const clientOrgId = client.clerkOrganizationId;
@@ -88,13 +117,9 @@ export function canAccessClient({
   return memberships.includes(clientOrgId);
 }
 
-/**
- * Requires that the user has access to the specified client.
- * Redirects to /dashboard/overview if access is denied.
- */
 export async function requireClientAccess(client: Client) {
   const { userId, orgId, sessionClaims } = await requireAuth();
-  const roles = parseRoles(sessionClaims?.roles);
+  const roles = parseRoles((sessionClaims as any)?.roles);
   const orgMemberships = dedupe([
     orgId ?? undefined,
     ...extractOrgMemberships(sessionClaims)
@@ -119,11 +144,10 @@ export async function requireClientAccess(client: Client) {
   };
 }
 
-/** Can manage clients (create, invite, etc.) */
 export function canManageClient(
   roles: ClientRole[] | undefined | null
 ): boolean {
-  if (!roles) return false;
+  if (!Array.isArray(roles)) return false;
   const managementRoles: ClientRole[] = [
     'AGENCY_ADMIN',
     'AGENCY_ANALYST',
@@ -132,29 +156,9 @@ export function canManageClient(
   return roles.some((role) => managementRoles.includes(role));
 }
 
-/** Require agency access for API routes; throws if denied */
-// Safely parse roles, which may be a stringified JSON array in the JWT claim
-function parseRoles(rawRoles: unknown): ClientRole[] {
-  if (Array.isArray(rawRoles)) {
-    return rawRoles as ClientRole[];
-  }
-  if (typeof rawRoles === 'string') {
-    try {
-      const parsed = JSON.parse(rawRoles);
-      if (Array.isArray(parsed)) {
-        return parsed as ClientRole[];
-      }
-    } catch {
-      // Fall through to return empty array if parsing fails
-    }
-  }
-  return [];
-}
-
-/** Require agency access for API routes; throws if denied */
 export async function requireApiAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = parseRoles(sessionClaims?.roles);
+  const roles = parseRoles((sessionClaims as any)?.roles);
 
   if (!canManageClient(roles)) {
     throw new Error('Unauthorized: Agency access required');
@@ -163,10 +167,9 @@ export async function requireApiAgencyAccess() {
   return roles;
 }
 
-/** Require agency access for pages; redirects if denied */
 export async function requireAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = parseRoles(sessionClaims?.roles);
+  const roles = parseRoles((sessionClaims as any)?.roles);
 
   if (!canManageClient(roles)) {
     redirect('/dashboard/overview');
