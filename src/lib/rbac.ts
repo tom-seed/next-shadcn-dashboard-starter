@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
 import type { ClientRole } from '@prisma/client';
 
 export type Client = {
@@ -19,16 +20,16 @@ export type Client = {
 function extractRoles(claims: unknown): ClientRole[] {
   if (!claims || typeof claims !== 'object') return [];
 
-  // The JWT template puts roles in `public_metadata`
-  const metadata = (claims as Record<string, any>).public_metadata;
+  // The JWT template adds roles directly to the claims object.
+  const roles = (claims as Record<string, unknown>).roles;
 
-  if (metadata && typeof metadata === 'object' && 'roles' in metadata) {
-    const roles = metadata.roles;
-    if (Array.isArray(roles)) {
-      return roles.filter(
-        (role): role is ClientRole => typeof role === 'string'
-      );
-    }
+  if (Array.isArray(roles)) {
+    // Ensure roles are valid ClientRole enum members
+    const validRoles = Object.values(Prisma.ClientScalarFieldEnum) as string[];
+    return roles.filter(
+      (role): role is ClientRole =>
+        typeof role === 'string' && validRoles.includes(role)
+    );
   }
 
   return [];
@@ -73,7 +74,7 @@ function dedupe<T>(inputs: (T | null | undefined)[]): T[] {
  * Checks if user has an agency role (AGENCY_ADMIN or AGENCY_ANALYST).
  */
 function hasAgencyRole(roles: ClientRole[]) {
-  const agencyRoles: string[] = [
+  const agencyRoles: ClientRole[] = [
     'AGENCY_ADMIN',
     'AGENCY_ANALYST',
     'INTERNAL_ADMIN'
@@ -98,25 +99,17 @@ export function canAccessClient({
   memberships: string[];
 }) {
   // Agency roles have global access
-  if (hasAgencyRole(userRoles)) {
-    return true;
-  }
+  if (hasAgencyRole(userRoles)) return true;
 
-  // Build list of allowed organization IDs
-  const allowedOrgIds = dedupe([
-    client.clerkOrganizationId ?? undefined,
-    ...(memberships ?? [])
-  ]);
+  // If the client isn't tied to a Clerk org, deny by default
+  const clientOrgId = client.clerkOrganizationId;
+  if (!clientOrgId) return false;
 
-  // Check if user's active org matches
-  if (activeOrgId && allowedOrgIds.includes(activeOrgId)) {
-    return true;
-  }
+  // Allow if the user's active org matches the client's org
+  if (activeOrgId && activeOrgId === clientOrgId) return true;
 
-  // Check if user is member of client's organization
-  return client.clerkOrganizationId
-    ? allowedOrgIds.includes(client.clerkOrganizationId)
-    : false;
+  // Otherwise allow if *any* membership matches the client's org
+  return memberships?.includes(clientOrgId) ?? false;
 }
 
 /**
@@ -152,10 +145,10 @@ export async function requireClientAccess(client: Client) {
 
 /**
  * Checks if user has permission to manage clients (create, invite, etc).
- * Only AGENCY_ADMIN and AGENCY_ANALYST roles can manage.
+ * Agency and internal admin roles can manage clients.
  */
 export function canManageClient(roles: ClientRole[]) {
-  const managementRoles: string[] = [
+  const managementRoles: ClientRole[] = [
     'AGENCY_ADMIN',
     'AGENCY_ANALYST',
     'INTERNAL_ADMIN'
