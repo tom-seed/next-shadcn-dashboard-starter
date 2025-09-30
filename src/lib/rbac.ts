@@ -17,24 +17,6 @@ export type Client = {
  * NOTE: your JWT template serializes roles as a stringified JSON array.
  * e.g. roles: '["INTERNAL_ADMIN"]'
  */
-function extractRoles(claims: unknown): ClientRole[] {
-  if (!claims || typeof claims !== 'object') return [];
-
-  // The JWT template adds custom claims under the `ext_claims` key.
-  const extClaims = (claims as Record<string, any>).ext_claims;
-
-  if (extClaims && typeof extClaims === 'object' && 'roles' in extClaims) {
-    const roles = extClaims.roles;
-    if (Array.isArray(roles)) {
-      const valid = new Set(Object.values(ClientRole) as string[]);
-      return roles.filter(
-        (r): r is ClientRole => typeof r === 'string' && valid.has(r)
-      );
-    }
-  }
-
-  return [];
-}
 
 /**
  * Extract organization memberships from Clerk session claims.
@@ -70,7 +52,8 @@ function dedupe<T>(inputs: (T | null | undefined)[]): T[] {
 }
 
 /** Agency/internal roles */
-function hasAgencyRole(roles: ClientRole[]) {
+function hasAgencyRole(roles: ClientRole[] | undefined | null): boolean {
+  if (!roles) return false;
   const agencyRoles: ClientRole[] = [
     'AGENCY_ADMIN',
     'AGENCY_ANALYST',
@@ -91,7 +74,7 @@ export function canAccessClient({
   memberships
 }: {
   client: Client;
-  userRoles: ClientRole[];
+  userRoles: ClientRole[] | undefined | null;
   activeOrgId?: string | null;
   memberships: string[];
 }) {
@@ -111,7 +94,7 @@ export function canAccessClient({
  */
 export async function requireClientAccess(client: Client) {
   const { userId, orgId, sessionClaims } = await requireAuth();
-  const roles = extractRoles(sessionClaims);
+  const roles = sessionClaims?.roles as ClientRole[] | undefined;
   const orgMemberships = dedupe([
     orgId ?? undefined,
     ...extractOrgMemberships(sessionClaims)
@@ -137,7 +120,10 @@ export async function requireClientAccess(client: Client) {
 }
 
 /** Can manage clients (create, invite, etc.) */
-export function canManageClient(roles: ClientRole[]) {
+export function canManageClient(
+  roles: ClientRole[] | undefined | null
+): boolean {
+  if (!roles) return false;
   const managementRoles: ClientRole[] = [
     'AGENCY_ADMIN',
     'AGENCY_ANALYST',
@@ -146,30 +132,26 @@ export function canManageClient(roles: ClientRole[]) {
   return roles.some((role) => managementRoles.includes(role));
 }
 
-export function getRolesFromClaims(sessionClaims: unknown): ClientRole[] {
-  return extractRoles(sessionClaims);
-}
-
 /** Require agency access for API routes; throws if denied */
 export async function requireApiAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = extractRoles(sessionClaims);
+  const roles = sessionClaims?.roles as ClientRole[] | undefined;
 
   if (!canManageClient(roles)) {
     throw new Error('Unauthorized: Agency access required');
   }
 
-  return roles;
+  return roles || [];
 }
 
 /** Require agency access for pages; redirects if denied */
 export async function requireAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = extractRoles(sessionClaims);
+  const roles = sessionClaims?.roles as ClientRole[] | undefined;
 
   if (!canManageClient(roles)) {
     redirect('/dashboard/overview');
   }
 
-  return roles;
+  return roles || [];
 }
