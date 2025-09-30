@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
-import type { ClientRole } from '@prisma/client';
+import { ClientRole } from '@prisma/client';
 
 export type Client = {
   id: number;
@@ -25,7 +24,7 @@ function extractRoles(claims: unknown): ClientRole[] {
 
   if (Array.isArray(roles)) {
     // Ensure roles are valid ClientRole enum members
-    const validRoles = Object.values(Prisma.ClientScalarFieldEnum) as string[];
+    const validRoles = Object.values(ClientRole) as string[];
     return roles.filter(
       (role): role is ClientRole =>
         typeof role === 'string' && validRoles.includes(role)
