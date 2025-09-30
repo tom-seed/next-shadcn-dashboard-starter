@@ -15,6 +15,7 @@ export async function getClientsOverviewForUser(clerkUserId: string) {
       name: true,
       url: true,
       cron: true,
+      createdAt: true,
       memberships: {
         where: { clerkUserId },
         select: {

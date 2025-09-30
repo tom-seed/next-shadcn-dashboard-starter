@@ -135,6 +135,49 @@ export async function POST(req: NextRequest) {
   const { type } = event;
 
   switch (type) {
+    case 'organization.created': {
+      // Organization created - ensure client record exists
+      const orgData = event.data as any;
+      const organizationId = orgData.id;
+      const name = orgData.name || 'Unnamed Client';
+
+      if (!organizationId) break;
+
+      // Check if client already exists
+      const existingClient = await prisma.client.findFirst({
+        where: { clerkOrganizationId: organizationId }
+      });
+
+      if (!existingClient) {
+        // Create client record if it doesn't exist
+        await prisma.client.create({
+          data: {
+            name,
+            clerkOrganizationId: organizationId
+          }
+        });
+      }
+
+      break;
+    }
+
+    case 'organization.deleted': {
+      // Organization deleted - optionally handle cleanup
+      const orgData = event.data as any;
+      const organizationId = orgData.id;
+
+      if (!organizationId) break;
+
+      // Soft delete or mark as inactive instead of hard delete
+      // This preserves historical data
+      await prisma.client.updateMany({
+        where: { clerkOrganizationId: organizationId },
+        data: { clerkOrganizationId: null }
+      });
+
+      break;
+    }
+
     case 'organization.memberships.created':
     case 'organization.memberships.updated': {
       const data = event.data as {

@@ -1,43 +1,15 @@
 // app/dashboard/overview/page.tsx
 import PageContainer from '@/components/layout/page-container';
 import { Card } from '@/components/ui/card';
-import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import { Heading } from '@/components/ui/heading';
-import { Button } from '@/components/ui/button';
 import { getClientsOverviewForUser } from '@/lib/getClientOverview';
-import { CrawlState, ClientRole } from '@prisma/client';
-import { Badge } from '@/components/ui/badge';
+import { ClientRole } from '@prisma/client';
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { getClientMembershipsForUser } from '@/lib/auth/memberships';
-
-function formatDateTime(date?: Date | string | null) {
-  if (!date) return '—';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  try {
-    return new Intl.DateTimeFormat('en-GB', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(d);
-  } catch {
-    return String(d);
-  }
-}
-
-function formatCrawlState(state: CrawlState) {
-  switch (state) {
-    case 'STARTED':
-      return <Badge className='bg-gray-500 text-white'>Started</Badge>;
-    case 'ABORTED':
-      return <Badge className='bg-red-500 text-white'>Aborted</Badge>;
-    case 'COMPLETED':
-      return <Badge className='bg-green-500 text-white'>Completed</Badge>;
-  }
-}
+import { CreateClientDialog } from '@/components/common/create-client-dialog';
+import { ClientOverviewRow } from '@/components/common/client-overview-row';
 
 export default async function OverViewPage() {
   const { userId } = await auth();
@@ -85,11 +57,7 @@ export default async function OverViewPage() {
               title='Clients'
               description='All clients and their latest crawl snapshot.'
             />
-            {hasAdminAccess && (
-              <Button asChild>
-                <Link href='/new-client'>Add New Client</Link>
-              </Button>
-            )}
+            {hasAdminAccess && <CreateClientDialog />}
           </div>
           <Separator />
           <div className='text-muted-foreground text-sm'>No clients found.</div>
@@ -106,65 +74,25 @@ export default async function OverViewPage() {
             title='Clients'
             description='All clients and their latest crawl snapshot.'
           />
-          {hasAdminAccess && (
-            <Button asChild>
-              <Link href='/new-client'>Add New Client</Link>
-            </Button>
-          )}
+          {hasAdminAccess && <CreateClientDialog />}
         </div>
         <Separator />
 
-        <div className='w-full space-y-4'>
-          {data.map((client) => {
-            const pagesCrawled =
-              client.crawls?.[0]?.audit?.pages_200_response ?? 0;
-            const lastCrawl = formatDateTime(
-              client.crawls?.[0]?.createdAt ?? null
-            );
-
-            return (
-              <Link
-                key={client.id}
-                href={`/dashboard/${client.id}/overview`}
-                className='block'
-              >
-                <Card className='flex h-[200px] w-full flex-col p-6 transition-shadow hover:shadow-md'>
-                  <div className='flex items-center justify-between'>
-                    <h3 className='text-lg font-semibold'>{client.name}</h3>
-                    <span className='text-sm font-medium'>
-                      {formatCrawlState(client.crawls?.[0]?.state)}
-                    </span>
-                  </div>
-
-                  <div className='mt-4 flex flex-grow flex-col space-y-3'>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-muted-foreground text-sm'>
-                        Pages Crawled
-                      </span>
-                      <span className='text-sm font-medium tabular-nums'>
-                        {pagesCrawled}
-                      </span>
-                    </div>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-muted-foreground text-sm'>
-                        Last Crawl
-                      </span>
-                      <span className='text-sm font-medium'>{lastCrawl}</span>
-                    </div>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-muted-foreground text-sm'>
-                        Audit Score
-                      </span>
-                      <span className='text-sm font-medium'>
-                        {client.crawls?.[0]?.audit?.score ?? 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+        <Card>
+          <div className='text-muted-foreground grid grid-cols-6 gap-4 p-4 text-sm font-medium'>
+            <div className='col-span-2'>Client</div>
+            <div>Health Score</div>
+            <div>Pages Crawled</div>
+            <div>Status</div>
+            <div>Created</div>
+          </div>
+          <Separator />
+          <div className='divide-border divide-y'>
+            {data.map((client) => (
+              <ClientOverviewRow key={client.id} client={client} />
+            ))}
+          </div>
+        </Card>
       </div>
     </PageContainer>
   );

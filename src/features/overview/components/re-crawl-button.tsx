@@ -32,7 +32,6 @@ export default function ReCrawlButton({ clientId, url }: Props) {
       toast.success('Re-crawl started successfully');
       router.refresh(); // Optional: Refresh the data on the page
     } catch (err) {
-      console.error(err);
       toast.error('Failed to start re-crawl');
     } finally {
       setLoading(false);

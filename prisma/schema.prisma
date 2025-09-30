@@ -8,22 +8,18 @@ datasource db {
 }
 
 model Client {
-  id          Int          @id @default(autoincrement())
-  name        String
-  url         String?
-  cron        String?
-  audits      Audit[]
-  auditIssues AuditIssue[]
-  crawls      Crawl[]
-  urls        Urls[]
-  clerkOrganizationId String? @unique
+  id                  Int                @id @default(autoincrement())
+  name                String
+  url                 String?
+  cron                String?
+  clerkOrganizationId String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
+  audits              Audit[]
+  auditIssues         AuditIssue[]
   memberships         ClientMembership[]
-}
-
-enum ClientRole {
-  INTERNAL_ADMIN
-  CLIENT_ADMIN
-  CLIENT_MEMBER
+  crawls              Crawl[]
+  urls                Urls[]
 }
 
 model ClientMembership {
@@ -147,6 +143,15 @@ model InternalLink {
   target    Urls?  @relation("TargetLinks", fields: [targetId], references: [id])
 
   @@unique([sourceId, targetUrl])
+}
+
+enum ClientRole {
+  INTERNAL_ADMIN
+  CLIENT_ADMIN
+  CLIENT_MEMBER
+  AGENCY_ADMIN
+  AGENCY_ANALYST
+  CLIENT_VIEWER
 }
 
 enum CrawlState {

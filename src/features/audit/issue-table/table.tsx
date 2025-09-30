@@ -13,7 +13,6 @@ import { useDataTable } from '@/hooks/use-data-table';
 import { DataTable } from '@/components/ui/table/data-table';
 import { DataTableToolbar } from '@/components/ui/table/data-table-toolbar';
 import { useState } from 'react';
-import { getAuditIssueColumns } from './columns';
 
 interface AuditTableProps<TData, TValue> {
   data: TData[];

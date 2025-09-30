@@ -50,7 +50,7 @@ export default async function RootLayout({
       </head>
       <body
         className={cn(
-          'bg-background font-outfit overflow-hidden overscroll-none antialiased',
+          'bg-background overflow-hidden overscroll-none font-sans antialiased',
           activeThemeValue ? `theme-${activeThemeValue}` : '',
           isScaled ? 'theme-scaled' : '',
           fontVariables

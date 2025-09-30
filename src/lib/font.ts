@@ -1,5 +1,4 @@
 import {
-  Geist,
   Geist_Mono,
   Instrument_Sans,
   Inter,
@@ -10,14 +9,14 @@ import {
 
 import { cn } from '@/lib/utils';
 
-const fontSans = Geist({
-  subsets: ['latin'],
-  variable: '--font-sans'
-});
-
 const fontMono = Geist_Mono({
   subsets: ['latin'],
   variable: '--font-mono'
+});
+
+const fontSans = Outfit({
+  subsets: ['latin'],
+  variable: '--font-sans'
 });
 
 const fontInstrument = Instrument_Sans({
@@ -40,13 +39,7 @@ const fontInter = Inter({
   variable: '--font-inter'
 });
 
-const fontOutfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit'
-});
-
 export const fontVariables = cn(
-  fontOutfit.variable,
   fontSans.variable,
   fontMono.variable,
   fontInstrument.variable,
