@@ -21,7 +21,7 @@ export default function ReCrawlButton({ clientId, url }: Props) {
     toast.info('Starting re-crawl...');
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_NODE_API}/re-crawl`, {
+      const res = await fetch('/api/re-crawl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, url })
