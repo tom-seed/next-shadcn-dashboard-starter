@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { clerkClient } from '@clerk/nextjs/server';
@@ -25,58 +26,54 @@ const ensureUniqueSlug = (baseSlug: string) =>
 
 export async function POST(request: Request) {
   try {
-    // Verify user has agency access
+    // Require agency access (front-door auth)
     await requireApiAgencyAccess();
 
-    // Parse and validate request body
+    // Validate input
     const body = await request.json();
-    const payload = schema.safeParse(body);
-
-    if (!payload.success) {
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: payload.error.flatten() },
+        { error: parsed.error.flatten() },
         { status: 400 }
       );
     }
+    const { name, url, startCrawl, cron } = parsed.data;
 
-    const { name, url, startCrawl, cron } = payload.data;
-
-    // Generate unique slug for Clerk organization
+    // Create a Clerk organization (best-effort)
     const baseSlug = slugify(name);
     const slug = ensureUniqueSlug(baseSlug);
 
-    // Create Clerk organization
-    let organizationId = `org_mock_${Date.now()}`;
-    const clerk = await clerkClient();
-
+    let organizationId: string;
     try {
+      // NOTE: In your setup, clerkClient is a function that returns the client
+      const clerk = await clerkClient();
       const organization = await clerk.organizations.createOrganization({
         name,
         slug
       });
       organizationId = organization.id;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        'Failed to create Clerk organization, using mock ID:',
-        error
-      );
+    } catch (err) {
+      console.warn('Failed to create Clerk organization, using mock ID:', err);
+      organizationId = `org_mock_${Date.now()}`;
     }
 
-    // Create client record in database
     const backendUrl =
       process.env.NEXT_PUBLIC_NODE_API || process.env.NEXT_PUBLIC_BACKEND_URL;
-    let clientId = Date.now();
 
+    let clientId: number | null = null;
+
+    // Prefer creating via the Node backend (global source of truth)
     if (backendUrl) {
       try {
         const headers = await getBackendAuthHeaders();
-        const response = await fetch(`${backendUrl}/clients`, {
+        const resp = await fetch(`${backendUrl}/clients`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...headers
           } as HeadersInit,
+          credentials: 'include', // IMPORTANT for Clerk session cookie
           body: JSON.stringify({
             name,
             url,
@@ -85,37 +82,42 @@ export async function POST(request: Request) {
           })
         });
 
-        if (response.ok) {
-          const json = await response.json();
-          clientId = json.id ?? clientId;
+        if (resp.ok) {
+          const json = await resp.json();
+          if (typeof json.id !== 'number') {
+            throw new Error('Backend did not return a numeric client id');
+          }
+          clientId = json.id;
 
-          // Trigger initial crawl if requested and client was created
+          // Optionally trigger first crawl
           if (startCrawl) {
             try {
-              const headers = await getBackendAuthHeaders();
+              const crawlHeaders = await getBackendAuthHeaders();
               await fetch(`${backendUrl}/start-crawl`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  ...headers
+                  ...crawlHeaders
                 } as HeadersInit,
+                credentials: 'include',
                 body: JSON.stringify({ clientId, url })
               });
-            } catch (error) {
-              // eslint-disable-next-line no-console
-              console.warn('Failed to trigger start crawl:', error);
+            } catch (crawlErr) {
+              console.warn('Failed to trigger start crawl:', crawlErr);
             }
           }
         } else {
-          // eslint-disable-next-line no-console
-          console.warn('Backend create-client failed:', await response.text());
+          console.warn('Backend create-client failed:', await resp.text());
+          // If you prefer fail-fast instead of local fallback, return here with the backend status.
+          // return NextResponse.json({ error: 'Backend error' }, { status: resp.status || 502 });
         }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn('Backend create-client unreachable:', error);
+      } catch (fetchErr) {
+        console.warn('Backend create-client unreachable:', fetchErr);
       }
-    } else {
-      // Fallback: Create client in local database if no backend
+    }
+
+    // Local fallback (only if backend didn’t yield an id)
+    if (clientId == null) {
       const client = await prisma.client.create({
         data: {
           name,
@@ -125,17 +127,14 @@ export async function POST(request: Request) {
         }
       });
       clientId = client.id;
+      // If you have a local crawler, you could kick it off here.
     }
 
     return NextResponse.json(
-      {
-        clientId,
-        redirectUrl: `/dashboard/${clientId}/overview`
-      },
+      { clientId, redirectUrl: `/dashboard/${clientId}/overview` },
       { status: 201 }
     );
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('Failed to create client:', error);
     return NextResponse.json(
       { error: 'Failed to create client' },

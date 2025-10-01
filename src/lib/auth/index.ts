@@ -1,4 +1,6 @@
+// lib/auth.ts
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { headers as nextHeaders } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 /**
@@ -41,37 +43,34 @@ export async function requireAuth() {
 export async function getOptionalUser() {
   try {
     return await currentUser();
-  } catch (error) {
+  } catch {
     return null;
   }
 }
 
 /**
  * Generates authorization headers for backend API requests.
- * Uses Clerk JWT token if available.
- * @returns Object with Authorization header or empty object
+ * - Always forwards the user's Cookie (for Clerk session auth)
+ * - Adds Authorization: Bearer <token> if getToken() is available
  */
-export async function getBackendAuthHeaders() {
-  const authResult = await auth();
+export async function getBackendAuthHeaders(): Promise<Record<string, string>> {
+  const h = new Headers();
 
-  if (!authResult.getToken) {
-    return {};
-  }
+  // Forward session cookie so Clerk on the backend can authenticate the request
+  const hdrs = await nextHeaders();
+  const cookie = hdrs.get('cookie');
+  if (cookie) h.set('cookie', cookie);
 
+  // Optionally include JWT if available (works fine alongside Cookie)
   try {
-    // Use default template or create a custom JWT template in Clerk dashboard
-    const token = await authResult.getToken();
-
-    if (!token) {
-      return {};
+    const { getToken } = await auth();
+    if (getToken) {
+      const token = await getToken();
+      if (token) h.set('authorization', `Bearer ${token}`);
     }
-
-    return {
-      Authorization: `Bearer ${token}`
-    };
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to get backend auth token:', error);
-    return {};
+  } catch {
+    // ignore
   }
+
+  return Object.fromEntries(h);
 }
