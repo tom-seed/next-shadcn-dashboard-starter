@@ -88,6 +88,24 @@ export async function POST(request: Request) {
         if (response.ok) {
           const json = await response.json();
           clientId = json.id ?? clientId;
+
+          // Trigger initial crawl if requested and client was created
+          if (startCrawl) {
+            try {
+              const headers = await getBackendAuthHeaders();
+              await fetch(`${backendUrl}/start-crawl`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...headers
+                } as HeadersInit,
+                body: JSON.stringify({ clientId, url })
+              });
+            } catch (error) {
+              // eslint-disable-next-line no-console
+              console.warn('Failed to trigger start crawl:', error);
+            }
+          }
         } else {
           // eslint-disable-next-line no-console
           console.warn('Backend create-client failed:', await response.text());
@@ -95,24 +113,6 @@ export async function POST(request: Request) {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.warn('Backend create-client unreachable:', error);
-      }
-
-      // Trigger initial crawl if requested
-      if (startCrawl) {
-        try {
-          const headers = await getBackendAuthHeaders();
-          await fetch(`${backendUrl}/start-crawl`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...headers
-            } as HeadersInit,
-            body: JSON.stringify({ clientId, url })
-          });
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.warn('Failed to trigger start crawl:', error);
-        }
       }
     } else {
       // Fallback: Create client in local database if no backend
