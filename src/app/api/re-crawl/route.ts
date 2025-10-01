@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.SPIDER_API_KEY) {
+      // eslint-disable-next-line no-console
+      console.error('SPIDER_API_KEY is not configured on the server.');
+      return NextResponse.json(
+        { error: 'Service not configured' },
+        { status: 500 }
+      );
+    }
+
     const { clientId, url } = await request.json();
 
     if (!clientId || !url) {
@@ -16,7 +25,8 @@ export async function POST(request: Request) {
       {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.SPIDER_API_KEY}`
         },
         body: JSON.stringify({ clientId, url })
       }
