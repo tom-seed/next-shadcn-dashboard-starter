@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     // Create client record in database
     const backendUrl =
-      process.env.ATLAS_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+      process.env.NEXT_PUBLIC_NODE_API || process.env.NEXT_PUBLIC_BACKEND_URL;
     let clientId = Date.now();
 
     if (backendUrl) {
