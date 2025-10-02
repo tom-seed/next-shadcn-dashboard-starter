@@ -16,21 +16,19 @@ export default function LiveAuditGate({
 }: Props) {
   const router = useRouter();
   const latestIdRef = useRef<number | null>(initialLatestId);
-  const enabledRef = useRef(enabled);
 
   useEffect(() => {
     latestIdRef.current = initialLatestId ?? null;
   }, [initialLatestId]);
 
   useEffect(() => {
-    enabledRef.current = enabled;
-  }, [enabled]);
+    if (!enabled) return;
 
-  useEffect(() => {
     let es: EventSource | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let sseErrorCount = 0;
+    let shouldReconnect = true;
 
     const backendUrl =
       process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -55,13 +53,15 @@ export default function LiveAuditGate({
       const nextId = data?.latest?.id ?? null;
       if (nextId && nextId !== latestIdRef.current) {
         latestIdRef.current = nextId;
+        shouldReconnect = false;
         stopPolling();
+        closeSSE();
         router.refresh();
       }
     };
 
     const startPolling = () => {
-      if (!enabledRef.current) return;
+      if (!shouldReconnect) return;
       if (pollTimer) return;
       pollTimer = setInterval(async () => {
         try {
@@ -76,7 +76,7 @@ export default function LiveAuditGate({
     };
 
     const scheduleSseRetry = () => {
-      if (retryTimer) return;
+      if (!shouldReconnect || retryTimer) return;
       const MAX_ERRORS = 3;
       if (sseErrorCount >= MAX_ERRORS || !backendUrl) {
         closeSSE();
@@ -92,6 +92,7 @@ export default function LiveAuditGate({
     };
 
     const openSSE = () => {
+      if (!shouldReconnect) return;
       stopPolling();
       closeSSE();
       if (!backendUrl) {
@@ -134,6 +135,7 @@ export default function LiveAuditGate({
 
     openSSE();
     return () => {
+      shouldReconnect = false;
       stopPolling();
       closeSSE();
       if (retryTimer) {
