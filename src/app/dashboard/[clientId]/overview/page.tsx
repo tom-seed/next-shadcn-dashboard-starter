@@ -1,4 +1,5 @@
 // src/app/dashboard/[clientId]/overview/page.tsx
+import LiveAuditGate from './LiveAuditGate';
 import {
   Card,
   CardDescription,
@@ -25,19 +26,15 @@ import {
 import { Heading } from '@/components/ui/heading';
 import { getClientOverviewData } from '@/features/overview/lib/get-client-overview-data';
 
-// ✅ Next.js 14.2+/15 typing: params is sync, searchParams is a Promise
 export default async function ClientOverviewPage({
-  params,
-  searchParams
+  params
 }: {
   params: Promise<{ clientId: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { clientId } = await params; // <- await params
+  const { clientId } = await params;
+  const cid = Number(clientId);
 
-  const { client, latest, previous } = await getClientOverviewData(
-    Number(clientId)
-  );
+  const { client, latest, previous } = await getClientOverviewData(cid);
 
   // --- Helpers for issue deltas & labels ---
   const EXCLUDE_KEYS = new Set([
@@ -52,8 +49,6 @@ export default async function ClientOverviewPage({
     'pages_4xx_response',
     'pages_5xx_response'
   ]);
-
-  const issueKeyToPath = (k: string) => k.replace(/_/g, '-');
 
   type Severity = 'Alert' | 'Warning' | 'Opportunity';
   const getSeverity = (k: string): Severity => {
@@ -105,13 +100,13 @@ export default async function ClientOverviewPage({
     return entries;
   };
 
+  const issueDeltas = computeIssueDeltas(latest || {}, previous || {});
   const TOP_LIMIT = 5;
-  const allIssueDeltas = computeIssueDeltas(latest || {}, previous || {});
-  const topTrendingUp = allIssueDeltas
+  const topTrendingUp = issueDeltas
     .filter((e) => e.delta > 0)
     .sort((a, b) => b.delta - a.delta)
     .slice(0, TOP_LIMIT);
-  const topTrendingDown = allIssueDeltas
+  const topTrendingDown = issueDeltas
     .filter((e) => e.delta < 0)
     .sort((a, b) => a.delta - b.delta)
     .slice(0, TOP_LIMIT);
@@ -192,6 +187,9 @@ export default async function ClientOverviewPage({
 
   return (
     <PageContainer>
+      {/* Auto-refresh the page when a newer audit arrives (SSE + polling fallback) */}
+      <LiveAuditGate clientId={cid} initialLatestId={latest?.id ?? null} />
+
       {!latest ? (
         <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>
           <CrawlLoadingSpinner />
@@ -311,32 +309,69 @@ export default async function ClientOverviewPage({
 
           {/* ROW 3: Trending lists */}
           <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-2'>
-            <div>
-              <Card className='@container/card'>
-                <CardHeader>
-                  <CardTitle className='mb-2'>Top Trending Issues</CardTitle>
-                  <CardDescription>
-                    Issues that have increased since the last audit
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* ...unchanged list rendering... */}
-                </CardContent>
-              </Card>
-            </div>
-            <div>
-              <Card className='@container/card'>
-                <CardHeader>
-                  <CardTitle className='mb-2'>Top Falling Issues</CardTitle>
-                  <CardDescription>
-                    Issues that have decreased since the last audit
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* ...unchanged list rendering... */}
-                </CardContent>
-              </Card>
-            </div>
+            <Card className='@container/card'>
+              <CardHeader>
+                <CardTitle className='mb-2'>Top Trending Issues</CardTitle>
+                <CardDescription>Increased since last audit</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topTrendingUp.length === 0 ? (
+                  <div className='text-muted-foreground text-sm'>
+                    No increases.
+                  </div>
+                ) : (
+                  <ul className='space-y-2'>
+                    {topTrendingUp.map((e) => (
+                      <li
+                        key={e.key}
+                        className='flex items-center justify-between'
+                      >
+                        <div className='flex items-center gap-2'>
+                          <Badge variant='secondary'>{e.severity}</Badge>
+                          <span>{prettyIssue(e.key)}</span>
+                        </div>
+                        <div className='flex items-center gap-1 font-medium'>
+                          <IconTrendingUp className='h-4 w-4' />
+                          <span>+{e.delta}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className='@container/card'>
+              <CardHeader>
+                <CardTitle className='mb-2'>Top Falling Issues</CardTitle>
+                <CardDescription>Decreased since last audit</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topTrendingDown.length === 0 ? (
+                  <div className='text-muted-foreground text-sm'>
+                    No decreases.
+                  </div>
+                ) : (
+                  <ul className='space-y-2'>
+                    {topTrendingDown.map((e) => (
+                      <li
+                        key={e.key}
+                        className='flex items-center justify-between'
+                      >
+                        <div className='flex items-center gap-2'>
+                          <Badge variant='secondary'>{e.severity}</Badge>
+                          <span>{prettyIssue(e.key)}</span>
+                        </div>
+                        <div className='flex items-center gap-1 font-medium'>
+                          <IconTrendingDown className='h-4 w-4' />
+                          <span>{e.delta}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       )}

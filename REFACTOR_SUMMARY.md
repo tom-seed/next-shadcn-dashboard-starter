@@ -265,7 +265,7 @@ await clerkClient.users.updateUserMetadata(userId, {
 
 4. **Clerk Organization Slug**: Auto-generated from client name with timestamp suffix to ensure uniqueness.
 
-5. **Existing Client Route**: The existing `/api/client` POST route (in `src/app/api/client/route.ts`) still works but is now redundant. Consider removing it after migration to avoid confusion.
+5. **Existing Client Route**: The existing `/api/clients` POST route (in `src/app/api/clients/route.ts`) still works but is now redundant. Consider removing it after migration to avoid confusion.
 
 ---
 

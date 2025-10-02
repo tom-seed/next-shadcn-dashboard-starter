@@ -16,7 +16,7 @@ export default function AuditComparisonView({ clientId }: Props) {
   const [previous, setPrevious] = useState<any>(null);
 
   useEffect(() => {
-    fetch(`/api/client/${clientId}/audits/latest`)
+    fetch(`/api/clients/${clientId}/audits/latest`)
       .then((res) => res.json())
       .then((data) => {
         setLatest(data.latest);

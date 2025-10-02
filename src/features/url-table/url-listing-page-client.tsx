@@ -94,7 +94,7 @@ export default function UrlListingPageClient({
       }
     });
 
-    const urlPath = `/api/client/${clientId}/urls?${query.toString()}${crawlId ? `&crawlId=${crawlId}` : ''}`;
+    const urlPath = `/api/clients/${clientId}/urls?${query.toString()}${crawlId ? `&crawlId=${crawlId}` : ''}`;
 
     const res = await fetch(urlPath, { cache: 'no-store' });
     if (!res.ok) return;

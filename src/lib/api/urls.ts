@@ -64,7 +64,7 @@ export async function getUrls(
   if (status) query.append('status', status);
 
   const res = await fetch(
-    `${baseUrl}/api/client/${clientId}/urls?${query.toString()}`,
+    `${baseUrl}/api/clients/${clientId}/urls?${query.toString()}`,
     {
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' }

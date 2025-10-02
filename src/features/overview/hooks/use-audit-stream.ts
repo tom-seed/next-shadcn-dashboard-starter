@@ -19,7 +19,7 @@ export function useAuditStream(clientId?: string | string[]) {
 
     const fetchClient = async () => {
       try {
-        const res = await fetch(`/api/client/${id}`);
+        const res = await fetch(`/api/clients/${id}`);
         if (res.ok) {
           const clientData = await res.json();
           if (!isCancelled) setClient(clientData);
@@ -29,7 +29,7 @@ export function useAuditStream(clientId?: string | string[]) {
 
     const checkLatestAudit = async () => {
       try {
-        const res = await fetch(`/api/client/${id}/audits/latest`);
+        const res = await fetch(`/api/clients/${id}/audits/latest`);
         if (res.ok) {
           const { latest, previous } = await res.json();
           if (!isCancelled && latest) {

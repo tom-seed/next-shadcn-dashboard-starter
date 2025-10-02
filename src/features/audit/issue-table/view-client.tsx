@@ -95,7 +95,7 @@ export default function AuditIssueViewClient({
     });
 
     const res = await fetch(
-      `/api/client/${clientId}/audits/issues/${issueKey}?${query.toString()}`
+      `/api/clients/${clientId}/audits/issues/${issueKey}?${query.toString()}`
     );
     const result = await res.json();
 
@@ -156,7 +156,7 @@ export default function AuditIssueViewClient({
     });
 
     const res = await fetch(
-      `/api/client/${clientId}/audits/issues/${issueKey}?${query.toString()}`,
+      `/api/clients/${clientId}/audits/issues/${issueKey}?${query.toString()}`,
       { cache: 'no-store' }
     );
     if (!res.ok) return;

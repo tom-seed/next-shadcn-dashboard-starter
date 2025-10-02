@@ -1,4 +1,4 @@
-// FILE: src/app/api/client/[clientId]/urls/route.ts
+// FILE: src/app/api/clients/[clientId]/urls/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient, Prisma } from '@prisma/client';

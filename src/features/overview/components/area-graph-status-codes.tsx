@@ -42,7 +42,7 @@ export function AreaGraphStatusCodes() {
     async function fetchChartData() {
       try {
         const res = await fetch(
-          `/api/client/${clientId}/graphs/status-code-trends`
+          `/api/clients/${clientId}/graphs/status-code-trends`
         );
         const { data } = await res.json();
         setChartData(data);
