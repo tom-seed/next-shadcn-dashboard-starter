@@ -2,8 +2,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { clerkClient } from '@clerk/nextjs/server';
-import { requireApiAgencyAccess } from '@/lib/rbac';
-import { getBackendAuthHeaders } from '@/lib/auth';
 import prisma from '@/lib/db';
 
 const schema = z.object({
@@ -24,12 +22,15 @@ const slugify = (value: string) =>
 const ensureUniqueSlug = (baseSlug: string) =>
   `${baseSlug || 'client'}-${Date.now().toString(36).slice(-6)}`;
 
+function getBackendConfig() {
+  const backendUrl =
+    process.env.NEXT_PUBLIC_NODE_API || process.env.NEXT_PUBLIC_BACKEND_URL;
+  const apiKey = process.env.SPIDER_API_KEY;
+  return { backendUrl, apiKey };
+}
+
 export async function POST(request: Request) {
   try {
-    // Require agency access (front-door auth)
-    await requireApiAgencyAccess();
-
-    // Validate input
     const body = await request.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
@@ -40,14 +41,13 @@ export async function POST(request: Request) {
     }
     const { name, url, startCrawl, cron } = parsed.data;
 
-    // Create a Clerk organization (best-effort)
+    // 1) Create a Clerk organization (best effort)
     const baseSlug = slugify(name);
     const slug = ensureUniqueSlug(baseSlug);
 
     let organizationId: string;
     try {
-      // NOTE: In your setup, clerkClient is a function that returns the client
-      const clerk = await clerkClient();
+      const clerk = await clerkClient(); // your project exposes clerkClient as a function
       const organization = await clerk.organizations.createOrganization({
         name,
         slug
@@ -58,76 +58,49 @@ export async function POST(request: Request) {
       organizationId = `org_mock_${Date.now()}`;
     }
 
-    const backendUrl =
-      process.env.NEXT_PUBLIC_NODE_API || process.env.NEXT_PUBLIC_BACKEND_URL;
+    // 2) Upsert the Client row (single source of truth for clientId)
+    //    Unique on clerkOrganizationId => one client per org
+    const client = await prisma.client.upsert({
+      where: { clerkOrganizationId: organizationId },
+      update: {
+        name,
+        // only update url/cron when provided and non-empty
+        ...(url ? { url } : {}),
+        ...(cron ? { cron } : {})
+      },
+      create: {
+        name,
+        url,
+        cron: cron || null,
+        clerkOrganizationId: organizationId
+      },
+      select: { id: true }
+    });
 
-    let clientId: number | null = null;
+    const clientId = client.id;
 
-    // Prefer creating via the Node backend (global source of truth)
-    if (backendUrl) {
-      try {
-        const headers = await getBackendAuthHeaders();
-        const resp = await fetch(`${backendUrl}/clients`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers
-          } as HeadersInit,
-          credentials: 'include', // IMPORTANT for Clerk session cookie
-          body: JSON.stringify({
-            name,
-            url,
-            cron,
-            clerkOrganizationId: organizationId
-          })
-        });
-
-        if (resp.ok) {
-          const json = await resp.json();
-          if (typeof json.id !== 'number') {
-            throw new Error('Backend did not return a numeric client id');
+    // 3) Kick off the crawl via the backend (API key auth, no cookies)
+    if (startCrawl) {
+      const { backendUrl, apiKey } = getBackendConfig();
+      if (!backendUrl || !apiKey) {
+        console.warn('Backend config missing; skipping crawl kick-off.');
+      } else {
+        try {
+          const resp = await fetch(`${backendUrl}/start-crawl`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({ clientId, url })
+          });
+          if (!resp.ok) {
+            console.warn('Backend /start-crawl failed:', await resp.text());
           }
-          clientId = json.id;
-
-          // Optionally trigger first crawl
-          if (startCrawl) {
-            try {
-              const crawlHeaders = await getBackendAuthHeaders();
-              await fetch(`${backendUrl}/start-crawl`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...crawlHeaders
-                } as HeadersInit,
-                credentials: 'include',
-                body: JSON.stringify({ clientId, url })
-              });
-            } catch (crawlErr) {
-              console.warn('Failed to trigger start crawl:', crawlErr);
-            }
-          }
-        } else {
-          console.warn('Backend create-client failed:', await resp.text());
-          // If you prefer fail-fast instead of local fallback, return here with the backend status.
-          // return NextResponse.json({ error: 'Backend error' }, { status: resp.status || 502 });
+        } catch (err) {
+          console.warn('Backend /start-crawl unreachable:', err);
         }
-      } catch (fetchErr) {
-        console.warn('Backend create-client unreachable:', fetchErr);
       }
-    }
-
-    // Local fallback (only if backend didn’t yield an id)
-    if (clientId == null) {
-      const client = await prisma.client.create({
-        data: {
-          name,
-          url,
-          cron,
-          clerkOrganizationId: organizationId
-        }
-      });
-      clientId = client.id;
-      // If you have a local crawler, you could kick it off here.
     }
 
     return NextResponse.json(

@@ -12,7 +12,7 @@ model Client {
   name                String
   url                 String?
   cron                String?
-  clerkOrganizationId String?
+  clerkOrganizationId String? @unique
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @default(now()) @updatedAt
   audits              Audit[]
