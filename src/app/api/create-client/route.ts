@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { clerkClient } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import prisma from '@/lib/db';
 
 const schema = z.object({
@@ -31,6 +31,12 @@ function getBackendConfig() {
 
 export async function POST(request: Request) {
   try {
+    // must be signed in (we also need userId to create a membership below)
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
@@ -58,13 +64,11 @@ export async function POST(request: Request) {
       organizationId = `org_mock_${Date.now()}`;
     }
 
-    // 2) Upsert the Client row (single source of truth for clientId)
-    //    Unique on clerkOrganizationId => one client per org
+    // 2) Upsert the Client row (unique by clerkOrganizationId)
     const client = await prisma.client.upsert({
       where: { clerkOrganizationId: organizationId },
       update: {
         name,
-        // only update url/cron when provided and non-empty
         ...(url ? { url } : {}),
         ...(cron ? { cron } : {})
       },
@@ -79,7 +83,14 @@ export async function POST(request: Request) {
 
     const clientId = client.id;
 
-    // 3) Kick off the crawl via the backend (API key auth, no cookies)
+    // 2b) Ensure the creator can manage/see it – add membership as CLIENT_ADMIN
+    await prisma.clientMembership.upsert({
+      where: { clientId_clerkUserId: { clientId, clerkUserId: userId } },
+      update: {}, // keep existing role if present
+      create: { clientId, clerkUserId: userId, role: 'CLIENT_ADMIN' }
+    });
+
+    // 3) Kick off the crawl via the backend (API key auth; no cookies needed)
     if (startCrawl) {
       const { backendUrl, apiKey } = getBackendConfig();
       if (!backendUrl || !apiKey) {
