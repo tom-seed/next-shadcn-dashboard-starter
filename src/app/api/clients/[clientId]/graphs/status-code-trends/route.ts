@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const pathParts = url.pathname.split('/');
-  const clientId = pathParts[pathParts.indexOf('client') + 1];
+  const clientId = pathParts[pathParts.indexOf('clients') + 1];
 
   const id = parseInt(clientId);
   if (isNaN(id)) {
