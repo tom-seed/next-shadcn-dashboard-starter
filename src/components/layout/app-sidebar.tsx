@@ -112,7 +112,7 @@ export default function AppSidebar() {
   React.useEffect(() => {
     const loadClients = async () => {
       try {
-        const res = await fetch('/api/client', { cache: 'no-store' });
+        const res = await fetch('/api/clients', { cache: 'no-store' });
 
         if (!res.ok) {
           return;

@@ -1,3 +1,4 @@
+// /dashboard/[clientId]/layout.tsx
 import { auth } from '@clerk/nextjs/server';
 import { notFound, redirect } from 'next/navigation';
 import { ReactNode } from 'react';
