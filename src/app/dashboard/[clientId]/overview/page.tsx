@@ -34,7 +34,10 @@ export default async function ClientOverviewPage({
   const { clientId } = await params;
   const cid = Number(clientId);
 
-  const { client, latest, previous } = await getClientOverviewData(cid);
+  const { client, latest, previous, latestCrawl } =
+    await getClientOverviewData(cid);
+
+  const shouldListenForUpdates = !latest || latestCrawl?.state === 'STARTED';
 
   // --- Helpers for issue deltas & labels ---
   const EXCLUDE_KEYS = new Set([
@@ -188,7 +191,11 @@ export default async function ClientOverviewPage({
   return (
     <PageContainer>
       {/* Auto-refresh the page when a newer audit arrives (SSE + polling fallback) */}
-      <LiveAuditGate clientId={cid} initialLatestId={latest?.id ?? null} />
+      <LiveAuditGate
+        clientId={cid}
+        initialLatestId={latest?.id ?? null}
+        enabled={shouldListenForUpdates}
+      />
 
       {!latest ? (
         <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>

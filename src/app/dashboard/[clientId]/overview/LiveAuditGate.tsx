@@ -3,18 +3,28 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-type Props = { clientId: number; initialLatestId?: number | null };
+type Props = {
+  clientId: number;
+  initialLatestId?: number | null;
+  enabled?: boolean;
+};
 
 export default function LiveAuditGate({
   clientId,
-  initialLatestId = null
+  initialLatestId = null,
+  enabled = true
 }: Props) {
   const router = useRouter();
   const latestIdRef = useRef<number | null>(initialLatestId);
+  const enabledRef = useRef(enabled);
 
   useEffect(() => {
     latestIdRef.current = initialLatestId ?? null;
   }, [initialLatestId]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
 
   useEffect(() => {
     let es: EventSource | null = null;
@@ -51,6 +61,7 @@ export default function LiveAuditGate({
     };
 
     const startPolling = () => {
+      if (!enabledRef.current) return;
       if (pollTimer) return;
       pollTimer = setInterval(async () => {
         try {
@@ -130,7 +141,7 @@ export default function LiveAuditGate({
         retryTimer = null;
       }
     };
-  }, [clientId, router]);
+  }, [clientId, router, enabled]);
 
   return null;
 }

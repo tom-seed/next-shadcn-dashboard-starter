@@ -49,10 +49,10 @@ export async function GET(req: NextRequest) {
 
     const trendData = audits.map((audit) => ({
       date: audit.createdAt.toISOString().split('T')[0],
-      '2xx': audit.pages_200_response,
-      '3xx': audit.pages_3xx_response,
-      '4xx': audit.pages_4xx_response,
-      '5xx': audit.pages_5xx_response
+      '2xx': audit.pages_200_response ?? 0,
+      '3xx': audit.pages_3xx_response ?? 0,
+      '4xx': audit.pages_4xx_response ?? 0,
+      '5xx': audit.pages_5xx_response ?? 0
     }));
 
     return NextResponse.json({ data: trendData });
