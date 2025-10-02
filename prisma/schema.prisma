@@ -35,6 +35,21 @@ model ClientMembership {
   @@index([clerkUserId])
 }
 
+model User {
+  id          Int         @id @default(autoincrement())
+  clerkUserId String      @unique
+  globalRole  GlobalRole  @default(NONE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([clerkUserId])
+}
+
+enum GlobalRole {
+  NONE
+  INTERNAL_ADMIN
+}
+
 model Crawl {
   id        Int        @id @default(autoincrement())
   clientId  Int

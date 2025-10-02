@@ -15,7 +15,10 @@
     "lint:strict": "eslint --max-warnings=0 src",
     "format": "prettier --write .",
     "format:check": "prettier -c -w .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prisma:generate": "prisma generate",
+    "backfill:users": "node -r dotenv/config scripts/backfill-users.mjs",
+    "backfill:memberships": "node -r dotenv/config scripts/backfill-client-memberships.mjs"
   },
   "lint-staged": {
     "**/*.{js,jsx,tsx,ts,css,less,scss,sass}": [
@@ -23,6 +26,7 @@
     ]
   },
   "dependencies": {
+    "@clerk/backend": "^2.17.0",
     "@clerk/nextjs": "^6.12.12",
     "@clerk/themes": "^2.2.26",
     "@dnd-kit/core": "^6.3.1",

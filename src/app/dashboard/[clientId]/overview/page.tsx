@@ -27,9 +27,11 @@ import { getClientOverviewData } from '@/features/overview/lib/get-client-overvi
 
 // ✅ Next.js 14.2+/15 typing: params is sync, searchParams is a Promise
 export default async function ClientOverviewPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ clientId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { clientId } = await params; // <- await params
 

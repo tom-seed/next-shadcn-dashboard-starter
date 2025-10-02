@@ -58,18 +58,19 @@ export function CreateClientDialog() {
         setOpen(false);
         form.reset();
         router.push(response.redirectUrl);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to create client.';
+      } catch (error: unknown) {
+        const message = (error as Error)?.message || 'Failed to create client.';
         toast.error('Unable to create client', { description: message });
       }
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
-        <Button size='lg'>New Client</Button>
+        <Button size='lg' disabled={isPending}>
+          {isPending ? 'Creating…' : 'New Client'}
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -137,6 +138,7 @@ export function CreateClientDialog() {
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
+                      disabled={isPending}
                     />
                   </FormControl>
                 </FormItem>
