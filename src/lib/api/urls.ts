@@ -15,6 +15,11 @@ interface InternalLinkDetail {
   id: number;
   status: number | null;
   targetUrl: string;
+  anchor: string | null;
+  follow: boolean;
+  rel: string | null;
+  crawlId: number;
+  createdAt: Date;
   target: {
     id: number;
     url: string;
@@ -25,6 +30,11 @@ interface InternalLinkDetail {
 interface ReferrerLinkDetail {
   id: number;
   status: number | null;
+  anchor: string | null;
+  follow: boolean;
+  rel: string | null;
+  crawlId: number;
+  createdAt: Date;
   source: {
     id: number;
     url: string;

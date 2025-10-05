@@ -12,13 +12,15 @@ model Client {
   name                String
   url                 String?
   cron                String?
-  clerkOrganizationId String? @unique
+  clerkOrganizationId String?            @unique
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @default(now()) @updatedAt
   audits              Audit[]
   auditIssues         AuditIssue[]
   memberships         ClientMembership[]
   crawls              Crawl[]
+  hreflangLinks       HreflangLink[]
+  internalLinks       InternalLink[]
   urls                Urls[]
 }
 
@@ -36,29 +38,26 @@ model ClientMembership {
 }
 
 model User {
-  id          Int         @id @default(autoincrement())
-  clerkUserId String      @unique
-  globalRole  GlobalRole  @default(NONE)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id          Int        @id @default(autoincrement())
+  clerkUserId String     @unique
+  globalRole  GlobalRole @default(NONE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([clerkUserId])
 }
 
-enum GlobalRole {
-  NONE
-  INTERNAL_ADMIN
-}
-
 model Crawl {
-  id        Int        @id @default(autoincrement())
-  clientId  Int
-  url       String
-  createdAt DateTime   @default(now())
-  state     CrawlState @default(STARTED)
-  audit     Audit?
-  client    Client     @relation(fields: [clientId], references: [id])
-  urls      Urls[]
+  id            Int            @id @default(autoincrement())
+  clientId      Int
+  url           String
+  createdAt     DateTime       @default(now())
+  state         CrawlState     @default(STARTED)
+  audit         Audit?
+  client        Client         @relation(fields: [clientId], references: [id])
+  hreflangLinks HreflangLink[]
+  internalLinks InternalLink[]
+  urls          Urls[]
 }
 
 model Urls {
@@ -75,8 +74,6 @@ model Urls {
   isCanonicalised            Boolean        @default(false)
   metaTitle                  String?
   metaDescription            String?
-  internalLinks              String[]
-  externalLinks              String[]
   h1                         String[]
   h2                         String[]
   h3                         String[]
@@ -84,11 +81,19 @@ model Urls {
   h5                         String[]
   h6                         String[]
   createdAt                  DateTime       @default(now())
+  lastModified               DateTime?
+  isPagination               Boolean        @default(false)
+  paginationNext             String?
+  paginationPrev             String?
   auditIssues                AuditIssue[]
+  hreflangLinks              HreflangLink[] @relation("HreflangSource")
+  hreflangTargets            HreflangLink[] @relation("HreflangTarget")
   sourceLinks                InternalLink[] @relation("SourceLinks")
   targetLinks                InternalLink[] @relation("TargetLinks")
   client                     Client         @relation(fields: [clientId], references: [id])
   crawl                      Crawl?         @relation(fields: [crawlId], references: [id])
+
+  @@unique([crawlId, url])
 }
 
 model Audit {
@@ -127,6 +132,25 @@ model Audit {
   score                     Int?
   pages_canonicalised       Int          @default(0)
   pages_missing_canonical   Int          @default(0)
+  
+  // Internal Link Audits (Phase 2A)
+  pages_orphaned                      Int @default(0)
+  pages_with_broken_internal_links    Int @default(0)
+  total_broken_internal_links         Int @default(0)
+  pages_with_redirect_links           Int @default(0)
+  total_redirect_internal_links       Int @default(0)
+  total_orphaned_pages                Int @default(0)
+  
+  // Hreflang Audits (Phase 2A)
+  pages_hreflang_missing_return_tag   Int @default(0)
+  pages_hreflang_broken_links         Int @default(0)
+  total_hreflang_broken_links         Int @default(0)
+  total_hreflang_missing_return_tags  Int @default(0)
+  pages_missing_hreflang_x_default    Int @default(0)
+  pages_hreflang_missing_self_ref     Int @default(0)
+  pages_with_hreflang                 Int @default(0)
+  total_hreflang_links                Int @default(0)
+  
   client                    Client       @relation(fields: [clientId], references: [id])
   crawl                     Crawl        @relation(fields: [crawlId], references: [id])
   issues                    AuditIssue[]
@@ -149,15 +173,52 @@ model AuditIssue {
 }
 
 model InternalLink {
-  id        Int    @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   sourceId  Int
   targetId  Int?
   targetUrl String
-  status    Int?
-  source    Urls   @relation("SourceLinks", fields: [sourceId], references: [id])
-  target    Urls?  @relation("TargetLinks", fields: [targetId], references: [id])
+  clientId  Int
+  crawlId   Int
+  createdAt DateTime @default(now())
+  follow    Boolean  @default(true)
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawl     Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  source    Urls     @relation("SourceLinks", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    Urls?    @relation("TargetLinks", fields: [targetId], references: [id], onDelete: Cascade)
 
-  @@unique([sourceId, targetUrl])
+  @@unique([sourceId, targetUrl, crawlId])
+  @@index([clientId, crawlId])
+  @@index([targetUrl])
+  @@index([follow])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model HreflangLink {
+  id           Int      @id @default(autoincrement())
+  clientId     Int
+  crawlId      Int
+  sourceId     Int
+  targetUrl    String
+  targetId     Int?
+  hreflang     String
+  hasReturnTag Boolean  @default(false)
+  targetStatus Int?
+  createdAt    DateTime @default(now())
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawl        Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  source       Urls     @relation("HreflangSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target       Urls?    @relation("HreflangTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, hreflang, crawlId])
+  @@index([clientId, crawlId])
+  @@index([targetUrl])
+  @@index([hreflang])
+}
+
+enum GlobalRole {
+  NONE
+  INTERNAL_ADMIN
 }
 
 enum ClientRole {

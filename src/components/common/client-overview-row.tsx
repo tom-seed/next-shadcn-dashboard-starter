@@ -64,7 +64,7 @@ export function ClientOverviewRow({ client }: { client: ClientData }) {
           }}
           asChild
         >
-          <Link href={`/dashboard/${client.id}/overview`}>Open portal</Link>
+          <Link href={`/dashboard/${client.id}/overview`}>Open Client</Link>
         </Button>
       </div>
       <div className='font-medium'>{healthScore}</div>

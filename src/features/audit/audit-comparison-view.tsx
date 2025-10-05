@@ -163,6 +163,49 @@ export default function AuditComparisonView({ clientId }: Props) {
           )
         ])}
 
+        {/* Internal Link Section */}
+        {renderSection('Internal Link', [
+          renderRow(
+            'Orphaned Pages',
+            'pages_orphaned',
+            `/dashboard/${clientId}/audits/issues/pages-orphaned`
+          ),
+          renderRow(
+            'Broken Internal Links',
+            'pages_with_broken_internal_links',
+            `/dashboard/${clientId}/audits/issues/pages-with-broken-internal-links`
+          ),
+          renderRow(
+            'Redirect Internal Links',
+            'pages_with_redirect_links',
+            `/dashboard/${clientId}/audits/issues/pages-with-redirect-links`
+          )
+        ])}
+
+        {/* Hreflang Section */}
+        {renderSection('Hreflang', [
+          renderRow(
+            'Missing Return Tag',
+            'pages_hreflang_missing_return_tag',
+            `/dashboard/${clientId}/audits/issues/pages-hreflang-missing-return-tag`
+          ),
+          renderRow(
+            'Broken Hreflang Links',
+            'pages_hreflang_broken_links',
+            `/dashboard/${clientId}/audits/issues/pages-hreflang-broken-links`
+          ),
+          renderRow(
+            'Missing Self Ref',
+            'pages_hreflang_missing_self_ref',
+            `/dashboard/${clientId}/audits/issues/pages-hreflang-missing-self-ref`
+          ),
+          renderRow(
+            'Missing X Default',
+            'pages_missing_hreflang_x_default',
+            `/dashboard/${clientId}/audits/issues/pages-missing-hreflang-x-default`
+          )
+        ])}
+
         {/* Indexability Section */}
         {renderSection('Indexability', [
           renderRow(

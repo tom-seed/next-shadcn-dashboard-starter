@@ -124,8 +124,14 @@ export default async function UrlViewPage({
   const opportunities = issues.filter(
     (i) => getSeverity(i.issueKey) === 'Opportunity'
   );
-  const outlinks = url.internalLinks ?? [];
-  const outlinksCount = outlinks.length;
+  const currentCrawlId = url.crawlId ?? null;
+
+  const outlinks = (url.sourceLinks ?? []).filter((link) =>
+    currentCrawlId ? link.crawlId === currentCrawlId : true
+  );
+  const inlinks = (url.targetLinks ?? []).filter((link) =>
+    currentCrawlId ? link.crawlId === currentCrawlId : true
+  );
 
   return (
     <PageContainer scrollable={true}>
@@ -305,11 +311,11 @@ export default async function UrlViewPage({
           </Card>
         </div>
 
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-1'>
+        <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
           <Card>
             <CardHeader className='flex flex-row items-center gap-2'>
               <CardTitle className='flex items-center gap-2'>
-                Unique Outlinks ({outlinksCount})
+                Internal Outlinks ({outlinks.length})
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -317,8 +323,8 @@ export default async function UrlViewPage({
                     </TooltipTrigger>
                     <TooltipContent side='top' align='center' sideOffset={4}>
                       <p>
-                        Unique outlinks going from this page to other pages on
-                        the site
+                        Links pointing from this URL to other internal pages
+                        discovered in the latest crawl.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -326,29 +332,118 @@ export default async function UrlViewPage({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {outlinksCount ? (
+              {outlinks.length ? (
                 <div className='bg-muted/30 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3'>
-                  {outlinks.map((link) => (
-                    <div
-                      key={link}
-                      className='flex items-center justify-between border-b pb-2 last:border-none'
-                    >
-                      <span className='text-muted-foreground text-sm'>
-                        {ellipsisUrl(link)}
-                      </span>
-                      <Link
-                        href={link}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        aria-label='Open outlink in new tab'
+                  {outlinks.map((link) => {
+                    const targetUrl = link.target?.url ?? link.targetUrl;
+                    const status = link.target?.status ?? link.status ?? null;
+                    const relLabel = !link.follow ? 'nofollow' : 'follow';
+                    return (
+                      <div
+                        key={link.id}
+                        className='flex items-start justify-between gap-3 border-b pb-2 last:border-none'
                       >
-                        <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
-                      </Link>
-                    </div>
-                  ))}
+                        <div className='flex flex-1 flex-col gap-1'>
+                          <span className='text-foreground text-sm font-medium'>
+                            {ellipsisUrl(targetUrl)}
+                          </span>
+                          <div className='text-muted-foreground text-xs'>
+                            {link.anchor
+                              ? `Anchor: ${link.anchor}`
+                              : 'Anchor: —'}
+                          </div>
+                          <div className='text-muted-foreground text-xs'>
+                            {relLabel}
+                            {link.rel ? ` · rel="${link.rel}"` : ''}
+                          </div>
+                        </div>
+                        <div className='flex shrink-0 flex-col items-end gap-2'>
+                          {status ? statusCodeBadge(status) : null}
+                          <Link
+                            href={targetUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            aria-label='Open outlink in new tab'
+                          >
+                            <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <span className='text-muted-foreground'>No outlinks found</span>
+                <span className='text-muted-foreground'>
+                  No internal outlinks found
+                </span>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className='flex flex-row items-center gap-2'>
+              <CardTitle className='flex items-center gap-2'>
+                Internal Inlinks ({inlinks.length})
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className='text-muted-foreground h-4 w-4 cursor-help' />
+                    </TooltipTrigger>
+                    <TooltipContent side='top' align='center' sideOffset={4}>
+                      <p>
+                        Internal pages that link to this URL, captured during
+                        the latest crawl.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {inlinks.length ? (
+                <div className='bg-muted/30 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3'>
+                  {inlinks.map((link) => {
+                    const sourceUrl = link.source?.url ?? 'Unknown source';
+                    const status = link.source?.status ?? link.status ?? null;
+                    const relLabel = !link.follow ? 'nofollow' : 'follow';
+                    return (
+                      <div
+                        key={link.id}
+                        className='flex items-start justify-between gap-3 border-b pb-2 last:border-none'
+                      >
+                        <div className='flex flex-1 flex-col gap-1'>
+                          <span className='text-foreground text-sm font-medium'>
+                            {ellipsisUrl(sourceUrl)}
+                          </span>
+                          <div className='text-muted-foreground text-xs'>
+                            {link.anchor
+                              ? `Anchor: ${link.anchor}`
+                              : 'Anchor: —'}
+                          </div>
+                          <div className='text-muted-foreground text-xs'>
+                            {relLabel}
+                            {link.rel ? ` · rel="${link.rel}"` : ''}
+                          </div>
+                        </div>
+                        <div className='flex shrink-0 flex-col items-end gap-2'>
+                          {status ? statusCodeBadge(status) : null}
+                          <Link
+                            href={sourceUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            aria-label='Open inlinking page in new tab'
+                          >
+                            <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <span className='text-muted-foreground'>
+                  No internal inlinks found
+                </span>
               )}
             </CardContent>
           </Card>
