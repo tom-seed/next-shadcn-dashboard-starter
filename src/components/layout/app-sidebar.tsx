@@ -105,6 +105,12 @@ export default function AppSidebar() {
         url: `#`,
         icon: 'robot',
         items: []
+      },
+      {
+        title: 'Settings',
+        url: `${base}/settings`,
+        icon: 'settings',
+        items: []
       }
     ];
   }, [activeClient]);

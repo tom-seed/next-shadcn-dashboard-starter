@@ -54,7 +54,7 @@ model Crawl {
   createdAt     DateTime       @default(now())
   state         CrawlState     @default(STARTED)
   audit         Audit?
-  client        Client         @relation(fields: [clientId], references: [id])
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   hreflangLinks HreflangLink[]
   internalLinks InternalLink[]
   urls          Urls[]
@@ -90,8 +90,8 @@ model Urls {
   hreflangTargets            HreflangLink[] @relation("HreflangTarget")
   sourceLinks                InternalLink[] @relation("SourceLinks")
   targetLinks                InternalLink[] @relation("TargetLinks")
-  client                     Client         @relation(fields: [clientId], references: [id])
-  crawl                      Crawl?         @relation(fields: [crawlId], references: [id])
+  client                     Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawl                      Crawl?         @relation(fields: [crawlId], references: [id], onDelete: Cascade)
 
   @@unique([crawlId, url])
 }
@@ -163,9 +163,9 @@ model AuditIssue {
   urlId     Int
   issueKey  String
   createdAt DateTime @default(now())
-  audit     Audit    @relation(fields: [auditId], references: [id])
-  client    Client   @relation(fields: [clientId], references: [id])
-  url       Urls     @relation(fields: [urlId], references: [id])
+  audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  url       Urls     @relation(fields: [urlId], references: [id], onDelete: Cascade)
 
   @@index([clientId])
   @@index([auditId])

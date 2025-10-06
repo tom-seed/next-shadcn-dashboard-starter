@@ -21,67 +21,44 @@ interface UrlViewPageProps {
 }
 
 const ellipsisUrl = (url: string) =>
-  url.length > 100 ? url.slice(0, 100) + '...' : url;
+  url.length > 100 ? `${url.slice(0, 100)}...` : url;
 
-// Severity helpers
 type Severity = 'Alert' | 'Warning' | 'Opportunity';
 const getSeverity = (key: string): Severity => {
-  // Response Codes
   if (/pages_5xx_response|pages_4xx_response/.test(key)) return 'Alert';
   if (/pages_3xx_response/.test(key)) return 'Warning';
-
-  // Meta Data (titles/descriptions)
   if (/pages_missing_(title|description)/.test(key)) return 'Alert';
   if (/pages_multiple_(title|description)/.test(key)) return 'Alert';
   if (/pages_duplicate_(title|description)/.test(key)) return 'Opportunity';
   if (/too_short_|too_long_|under_|over_/.test(key)) return 'Opportunity';
-
-  // Headings (H1/H2)
   if (/pages_missing_h1|pages_missing_h2/.test(key)) return 'Alert';
   if (/pages_multiple_h1|with_multiple_h2s/.test(key)) return 'Warning';
   if (/pages_duplicate_h1|pages_duplicate_h2/.test(key)) return 'Warning';
-
-  // Other headings (H3+): treat as Warning by default
   if (/pages_missing_h[3-6]/.test(key)) return 'Warning';
-
   return 'Warning';
 };
 
 const issueMap = (key: string, issue: string) => {
-  const issueClean = issue
+  const cleaned = issue
     .replace(/^pages_/, '')
     .replaceAll('_', ' ')
     .replace(/\bWith\b\s*/i, '')
     .replace(/\b\w/g, (c) => c.toUpperCase());
   const severity = getSeverity(key);
-  if (severity === 'Alert') {
-    return (
-      <span className='flex items-center gap-1'>
-        <IconAlertTriangle className='h-4 w-4 text-white' />
-        {issueClean}
-      </span>
-    );
-  }
 
-  if (severity === 'Warning') {
-    return (
-      <span className='flex items-center gap-1'>
-        <IconAlertTriangle className='h-4 w-4 text-yellow-500' />
-        {issueClean}
-      </span>
-    );
-  }
+  const iconClass =
+    severity === 'Alert'
+      ? 'text-white'
+      : severity === 'Warning'
+        ? 'text-yellow-500'
+        : 'text-white';
 
-  if (severity === 'Opportunity') {
-    return (
-      <span className='flex items-center gap-1'>
-        <IconAlertTriangle className='h-4 w-4 text-white' />
-        {issueClean}
-      </span>
-    );
-  }
-
-  return null;
+  return (
+    <span className='flex items-center gap-1'>
+      <IconAlertTriangle className={`h-4 w-4 ${iconClass}`} />
+      {cleaned}
+    </span>
+  );
 };
 
 const statusCodeBadge = (statusCode: number) => {
@@ -115,17 +92,20 @@ export default async function UrlViewPage({
   if (!url) return notFound();
   const fullUrl = url.url;
 
-  // Filter out non-issues (e.g., 200 OK) and pre-group by severity for counts
   const issues = (url.auditIssues ?? []).filter(
-    (i) => i.issueKey !== 'pages_200_response'
+    (issue) => issue.issueKey !== 'pages_200_response'
   );
-  const alerts = issues.filter((i) => getSeverity(i.issueKey) === 'Alert');
-  const warnings = issues.filter((i) => getSeverity(i.issueKey) === 'Warning');
+  const alerts = issues.filter(
+    (issue) => getSeverity(issue.issueKey) === 'Alert'
+  );
+  const warnings = issues.filter(
+    (issue) => getSeverity(issue.issueKey) === 'Warning'
+  );
   const opportunities = issues.filter(
-    (i) => getSeverity(i.issueKey) === 'Opportunity'
+    (issue) => getSeverity(issue.issueKey) === 'Opportunity'
   );
-  const currentCrawlId = url.crawlId ?? null;
 
+  const currentCrawlId = url.crawlId ?? null;
   const outlinks = (url.sourceLinks ?? []).filter((link) =>
     currentCrawlId ? link.crawlId === currentCrawlId : true
   );
@@ -136,7 +116,6 @@ export default async function UrlViewPage({
   return (
     <PageContainer scrollable={true}>
       <div className='flex flex-1 flex-col space-y-4'>
-        {/* Header */}
         <div className='flex items-start justify-between'>
           <div className='flex flex-col gap-1'>
             <Heading
@@ -165,8 +144,8 @@ export default async function UrlViewPage({
           </div>
         </div>
         <Separator />
+
         <div className='grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-3'>
-          {/* Metadata Card */}
           <div className='col-span-2'>
             <div className='bg-card text-card-foreground flex h-full flex-col rounded-lg border shadow-sm'>
               <div className='border-b p-4 pb-2'>
@@ -195,13 +174,11 @@ export default async function UrlViewPage({
             </div>
           </div>
 
-          {/* Headings Card */}
           <div className='col-span-1'>
             <div className='bg-card text-card-foreground flex h-full flex-col rounded-lg border shadow-sm'>
               <div className='border-b p-4 pb-2'>
                 <span className='text-base font-semibold'>Headings</span>
               </div>
-              {/* Headings content */}
               <CardContent className='space-y-2 p-4'>
                 <div>
                   <span className='text-sm font-medium'>H1 Tags</span>
@@ -243,7 +220,6 @@ export default async function UrlViewPage({
             </div>
           </div>
 
-          {/* Issues: three cards */}
           <Card className='col-span-1'>
             <CardHeader>
               <CardTitle>Alerts ({alerts.length})</CardTitle>

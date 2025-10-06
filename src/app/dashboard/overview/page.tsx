@@ -10,7 +10,7 @@ import { redirect } from 'next/navigation';
 import { getClientMembershipsForUser } from '@/lib/auth/memberships';
 import { CreateClientDialog } from '@/components/common/create-client-dialog';
 import { ClientOverviewRow } from '@/components/common/client-overview-row';
-import { isGlobalAdmin } from '@/lib/auth/global-role'; // adjust path if needed
+import { isGlobalAdmin } from '@/lib/auth/global-role';
 
 export default async function OverViewPage() {
   const { userId } = await auth();
@@ -25,26 +25,23 @@ export default async function OverViewPage() {
 
   const ADMIN_ROLES = new Set<ClientRole>([
     ClientRole.INTERNAL_ADMIN,
-    ClientRole.CLIENT_ADMIN
+    ClientRole.CLIENT_ADMIN,
+    ClientRole.AGENCY_ADMIN,
+    ClientRole.AGENCY_ANALYST
   ]);
 
   const hasAdminRoleOnAnyClient = memberships.some((m) =>
     ADMIN_ROLES.has(m.role)
   );
 
-  // You are considered admin for UI purposes if you are a global admin OR have admin role on any client
   const hasAdminAccess = globalAdmin || hasAdminRoleOnAnyClient;
 
-  // If user is NOT an admin and has exactly 1 membership, deep-link them into that client
   if (!hasAdminAccess && memberships.length === 1) {
     redirect(`/dashboard/${memberships[0].clientId}/overview`);
   }
 
-  // Pull the visible clients for this user (will be empty if they have no memberships)
   const data = await getClientsOverviewForUser(userId);
 
-  // When the user has no memberships, still show the page;
-  // if they are an admin (global), show the "New Client" button so they can create the first client.
   if (!memberships.length) {
     return (
       <PageContainer>
@@ -67,7 +64,6 @@ export default async function OverViewPage() {
     );
   }
 
-  // If memberships exist but no client data comes back, still render header + button for admins
   if (!data || data.length === 0) {
     return (
       <PageContainer>
@@ -109,7 +105,11 @@ export default async function OverViewPage() {
           <Separator />
           <div className='divide-border divide-y'>
             {data.map((client) => (
-              <ClientOverviewRow key={client.id} client={client} />
+              <ClientOverviewRow
+                key={client.id}
+                client={client}
+                showDelete={hasAdminAccess}
+              />
             ))}
           </div>
         </Card>

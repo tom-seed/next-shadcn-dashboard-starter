@@ -1,55 +1,6 @@
-// auth/access.ts
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth';
 import type { ClientRole } from '@prisma/client';
-
-// Safely parse roles from Clerk session claims.
-// Handles:
-// - ["INTERNAL_ADMIN"]
-// - { roles: ["INTERNAL_ADMIN"] }
-// - JSON strings of either of the above
-// - CSV fallback: "INTERNAL_ADMIN,AGENCY_ADMIN"
-export function parseRoles(rawRoles: unknown): ClientRole[] {
-  // Already an array
-  if (Array.isArray(rawRoles)) {
-    return rawRoles as ClientRole[];
-  }
-
-  // Object wrapper: { roles: [...] }
-  if (rawRoles && typeof rawRoles === 'object') {
-    const maybe = (rawRoles as Record<string, unknown>).roles;
-    if (Array.isArray(maybe)) {
-      return maybe as ClientRole[];
-    }
-  }
-
-  // String variants
-  if (typeof rawRoles === 'string') {
-    // Try JSON first
-    try {
-      const parsed = JSON.parse(rawRoles);
-      if (Array.isArray(parsed)) return parsed as ClientRole[];
-      if (
-        parsed &&
-        typeof parsed === 'object' &&
-        Array.isArray((parsed as any).roles)
-      ) {
-        return (parsed as any).roles as ClientRole[];
-      }
-    } catch {
-      // not JSON, fall through
-    }
-
-    // CSV fallback: "INTERNAL_ADMIN,AGENCY_ADMIN"
-    const csv = rawRoles
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (csv.length) return csv as ClientRole[];
-  }
-
-  return [];
-}
 
 export type Client = {
   id: number;
@@ -61,6 +12,62 @@ export type Client = {
   updatedAt?: Date;
 };
 
+// --- Role helpers ---------------------------------------------------------
+
+export function parseRoles(rawRoles: unknown): ClientRole[] {
+  if (Array.isArray(rawRoles)) {
+    return rawRoles as ClientRole[];
+  }
+
+  if (rawRoles && typeof rawRoles === 'object') {
+    const maybe = (rawRoles as Record<string, unknown>).roles;
+    if (Array.isArray(maybe)) {
+      return maybe as ClientRole[];
+    }
+  }
+
+  if (typeof rawRoles === 'string') {
+    try {
+      const parsed = JSON.parse(rawRoles);
+      if (Array.isArray(parsed)) return parsed as ClientRole[];
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        Array.isArray((parsed as any).roles)
+      ) {
+        return (parsed as any).roles as ClientRole[];
+      }
+    } catch {
+      // not JSON; fall through to CSV parsing
+    }
+
+    const csv = rawRoles
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (csv.length) return csv as ClientRole[];
+  }
+
+  return [];
+}
+
+function extractRoles(claims: unknown): ClientRole[] {
+  if (!claims || typeof claims !== 'object') return [];
+
+  const direct = parseRoles((claims as Record<string, unknown>).roles);
+  if (direct.length) return direct;
+
+  const metadata =
+    (claims as Record<string, unknown>).metadata ??
+    (claims as Record<string, unknown>).publicMetadata ??
+    (claims as Record<string, unknown>).privateMetadata;
+
+  const fromMetadata = parseRoles(metadata);
+  if (fromMetadata.length) return fromMetadata;
+
+  return [];
+}
+
 function extractOrgMemberships(claims: unknown): string[] {
   if (!claims || typeof claims !== 'object') return [];
 
@@ -69,11 +76,13 @@ function extractOrgMemberships(claims: unknown): string[] {
     return orgs.filter((id): id is string => typeof id === 'string');
   }
 
-  const c = claims as Record<string, any>;
-  const metadata = c.metadata ?? c.publicMetadata ?? c.privateMetadata;
+  const metadata =
+    (claims as Record<string, unknown>).metadata ??
+    (claims as Record<string, unknown>).publicMetadata ??
+    (claims as Record<string, unknown>).privateMetadata;
 
   if (metadata && typeof metadata === 'object' && 'orgIds' in metadata) {
-    const orgIds = (metadata as any).orgIds;
+    const orgIds = (metadata as Record<string, unknown>).orgIds;
     if (Array.isArray(orgIds)) {
       return orgIds.filter((id): id is string => typeof id === 'string');
     }
@@ -95,6 +104,8 @@ function hasAgencyRole(roles: ClientRole[] | undefined | null): boolean {
   ];
   return roles.some((role) => agencyRoles.includes(role));
 }
+
+// --- Access checks --------------------------------------------------------
 
 export function canAccessClient({
   client,
@@ -119,7 +130,7 @@ export function canAccessClient({
 
 export async function requireClientAccess(client: Client) {
   const { userId, orgId, sessionClaims } = await requireAuth();
-  const roles = parseRoles((sessionClaims as any)?.roles);
+  const roles = extractRoles(sessionClaims);
   const orgMemberships = dedupe([
     orgId ?? undefined,
     ...extractOrgMemberships(sessionClaims)
@@ -158,7 +169,7 @@ export function canManageClient(
 
 export async function requireApiAgencyAccess() {
   const { sessionClaims } = await requireAuth();
-  const roles = parseRoles((sessionClaims as any)?.roles);
+  const roles = extractRoles(sessionClaims);
 
   if (!canManageClient(roles)) {
     throw new Error('Unauthorized: Agency access required');
@@ -168,12 +179,19 @@ export async function requireApiAgencyAccess() {
 }
 
 export async function requireAgencyAccess() {
-  const { sessionClaims } = await requireAuth();
-  const roles = parseRoles((sessionClaims as any)?.roles);
+  const { userId, sessionClaims } = await requireAuth();
+  const roles = extractRoles(sessionClaims);
 
-  if (!canManageClient(roles)) {
+  if (canManageClient(roles)) {
+    return roles;
+  }
+
+  const { isGlobalAdmin } = await import('@/lib/auth/global-role');
+  const isAdmin = await isGlobalAdmin(userId);
+
+  if (!isAdmin) {
     redirect('/dashboard/overview');
   }
 
-  return roles;
+  return ['INTERNAL_ADMIN'] as ClientRole[];
 }

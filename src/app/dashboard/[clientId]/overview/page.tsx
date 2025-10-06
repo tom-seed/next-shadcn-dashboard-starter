@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Heading } from '@/components/ui/heading';
 import { getClientOverviewData } from '@/features/overview/lib/get-client-overview-data';
+import { ClientHeader } from '@/components/common/client-header';
 
 export default async function ClientOverviewPage({
   params
@@ -211,9 +212,12 @@ export default async function ClientOverviewPage({
               title={`${client?.name} Overview`}
               description={`Last Crawl: ${lastCrawlClean}`}
             />
-            {client && client.url && (
-              <ReCrawlButton clientId={String(client.id)} url={client.url} />
-            )}
+            <div className='flex items-center gap-2'>
+              <ClientHeader clientId={cid} />
+              {client && client.url && (
+                <ReCrawlButton clientId={String(client.id)} url={client.url} />
+              )}
+            </div>
           </div>
 
           {/* ROW 1: Primary visuals */}
@@ -316,6 +320,69 @@ export default async function ClientOverviewPage({
 
           {/* ROW 3: Trending lists */}
           <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-2'>
+            <Card className='@container/card'>
+              <CardHeader>
+                <CardTitle className='mb-2'>Top Trending Issues</CardTitle>
+                <CardDescription>Increased since last audit</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topTrendingUp.length === 0 ? (
+                  <div className='text-muted-foreground text-sm'>
+                    No increases.
+                  </div>
+                ) : (
+                  <ul className='space-y-2'>
+                    {topTrendingUp.map((e) => (
+                      <li
+                        key={e.key}
+                        className='flex items-center justify-between'
+                      >
+                        <div className='flex items-center gap-2'>
+                          <Badge variant='secondary'>{e.severity}</Badge>
+                          <span>{prettyIssue(e.key)}</span>
+                        </div>
+                        <div className='flex items-center gap-1 font-medium'>
+                          <IconTrendingUp className='h-4 w-4' />
+                          <span>+{e.delta}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className='@container/card'>
+              <CardHeader>
+                <CardTitle className='mb-2'>Top Falling Issues</CardTitle>
+                <CardDescription>Decreased since last audit</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topTrendingDown.length === 0 ? (
+                  <div className='text-muted-foreground text-sm'>
+                    No decreases.
+                  </div>
+                ) : (
+                  <ul className='space-y-2'>
+                    {topTrendingDown.map((e) => (
+                      <li
+                        key={e.key}
+                        className='flex items-center justify-between'
+                      >
+                        <div className='flex items-center gap-2'>
+                          <Badge variant='secondary'>{e.severity}</Badge>
+                          <span>{prettyIssue(e.key)}</span>
+                        </div>
+                        <div className='flex items-center gap-1 font-medium'>
+                          <IconTrendingDown className='h-4 w-4' />
+                          <span>{e.delta}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
             <Card className='@container/card'>
               <CardHeader>
                 <CardTitle className='mb-2'>Top Trending Issues</CardTitle>

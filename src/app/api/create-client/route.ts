@@ -47,13 +47,12 @@ export async function POST(request: Request) {
     }
     const { name, url, startCrawl, cron } = parsed.data;
 
-    // 1) Create a Clerk organization (best effort)
     const baseSlug = slugify(name);
     const slug = ensureUniqueSlug(baseSlug);
 
     let organizationId: string;
     try {
-      const clerk = await clerkClient(); // your project exposes clerkClient as a function
+      const clerk = await clerkClient();
       const organization = await clerk.organizations.createOrganization({
         name,
         slug

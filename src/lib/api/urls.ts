@@ -85,6 +85,7 @@ export async function getUrls(
     const errorData = await res
       .json()
       .catch(() => ({ message: 'Unknown API error' }));
+    // eslint-disable-next-line no-console
     console.error('API Fetch Error:', errorData);
     throw new Error(
       `Failed to fetch URLs: ${errorData.error || res.statusText}`
@@ -99,6 +100,7 @@ export async function getUrls(
     typeof data[0] === 'object' &&
     'url' in data[0]
   ) {
+    // eslint-disable-next-line no-console
     console.warn(`[API_RESPONSE_ERROR] Expected object, received array:`, data);
     data = {
       urls: data as unknown as Urls[],
@@ -108,10 +110,12 @@ export async function getUrls(
     };
   } else {
     if (!Array.isArray(data.urls)) {
+      // eslint-disable-next-line no-console
       console.warn(`[API_RESPONSE_ERROR] urls is not an array:`, data.urls);
       data.urls = [];
     }
     if (typeof data.totalCount !== 'number') {
+      // eslint-disable-next-line no-console
       console.warn(
         `[API_RESPONSE_ERROR] totalCount is not a number:`,
         data.totalCount
