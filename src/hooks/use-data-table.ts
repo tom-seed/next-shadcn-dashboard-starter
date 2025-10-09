@@ -80,6 +80,14 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     ...tableProps
   } = props;
 
+  const {
+    onSortingChange: externalOnSortingChange,
+    onColumnFiltersChange: externalOnColumnFiltersChange,
+    onPaginationChange: externalOnPaginationChange,
+    onColumnVisibilityChange: externalOnColumnVisibilityChange,
+    ...restTableProps
+  } = tableProps;
+
   const queryStateOptions = React.useMemo<
     Omit<UseQueryStateOptions<string>, 'parse'>
   >(
@@ -137,8 +145,10 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
         void setPage(updaterOrValue.pageIndex + 1);
         void setPerPage(updaterOrValue.pageSize);
       }
+
+      externalOnPaginationChange?.(updaterOrValue);
     },
-    [pagination, setPage, setPerPage]
+    [pagination, setPage, setPerPage, externalOnPaginationChange]
   );
 
   const columnIds = React.useMemo(() => {
@@ -156,6 +166,8 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
 
   const onSortingChange = React.useCallback(
     (updaterOrValue: Updater<SortingState>) => {
+      externalOnSortingChange?.(updaterOrValue);
+
       if (typeof updaterOrValue === 'function') {
         const newSorting = updaterOrValue(sorting);
         setSorting(newSorting as ExtendedColumnSort<TData>[]);
@@ -163,7 +175,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
         setSorting(updaterOrValue as ExtendedColumnSort<TData>[]);
       }
     },
-    [sorting, setSorting]
+    [sorting, setSorting, externalOnSortingChange]
   );
 
   const filterableColumns = React.useMemo(() => {
@@ -236,6 +248,8 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
             ? updaterOrValue(prev)
             : updaterOrValue;
 
+        externalOnColumnFiltersChange?.(next);
+
         const filterUpdates = next.reduce<
           Record<string, string | string[] | null>
         >((acc, filter) => {
@@ -255,11 +269,31 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
         return next;
       });
     },
-    [debouncedSetFilterValues, filterableColumns, enableAdvancedFilter]
+    [
+      debouncedSetFilterValues,
+      filterableColumns,
+      enableAdvancedFilter,
+      externalOnColumnFiltersChange
+    ]
+  );
+
+  const handleColumnVisibilityChange = React.useCallback(
+    (updaterOrValue: Updater<VisibilityState>) => {
+      setColumnVisibility((prev) => {
+        const next =
+          typeof updaterOrValue === 'function'
+            ? updaterOrValue(prev)
+            : updaterOrValue;
+
+        externalOnColumnVisibilityChange?.(next);
+        return next;
+      });
+    },
+    [externalOnColumnVisibilityChange]
   );
 
   const table = useReactTable({
-    ...tableProps,
+    ...restTableProps,
     columns,
     initialState,
     pageCount,
@@ -279,7 +313,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     onPaginationChange,
     onSortingChange,
     onColumnFiltersChange,
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: handleColumnVisibilityChange,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

@@ -23,7 +23,7 @@ import {
   FormLabel,
   FormMessage
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { EmailMultiInput } from '@/components/ui/email-multi-input';
 import {
   Select,
   SelectContent,
@@ -35,7 +35,9 @@ import { inviteUserAction } from '@/lib/client-actions';
 import type { ClientRole } from '@prisma/client';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  emails: z
+    .array(z.string().email('Enter a valid email'))
+    .min(1, 'Add at least one email'),
   role: z.enum(['CLIENT_ADMIN', 'CLIENT_VIEWER'])
 });
 
@@ -52,24 +54,31 @@ export function InviteUserDialog({ clientId, trigger }: InviteUserDialogProps) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { role: 'CLIENT_VIEWER' }
+    defaultValues: { emails: [], role: 'CLIENT_VIEWER' }
   });
 
   const onSubmit = (values: FormValues) => {
     startTransition(async () => {
       try {
-        await inviteUserAction({
-          clientId,
-          email: values.email,
-          role: values.role as Extract<
-            ClientRole,
-            'CLIENT_ADMIN' | 'CLIENT_VIEWER'
-          >
+        await Promise.all(
+          values.emails.map((email) =>
+            inviteUserAction({
+              clientId,
+              email,
+              role: values.role as Extract<
+                ClientRole,
+                'CLIENT_ADMIN' | 'CLIENT_VIEWER'
+              >
+            })
+          )
+        );
+        toast.success('Invites sent', {
+          description:
+            values.emails.length === 1
+              ? `${values.emails[0]} will receive a Clerk organization invite.`
+              : `${values.emails.length} collaborators will receive Clerk invites.`
         });
-        toast.success('Invite sent', {
-          description: `${values.email} will receive a Clerk organization invite.`
-        });
-        form.reset({ email: '', role: 'CLIENT_VIEWER' });
+        form.reset({ emails: [], role: 'CLIENT_VIEWER' });
         setOpen(false);
       } catch (error) {
         const message =
@@ -92,12 +101,22 @@ export function InviteUserDialog({ clientId, trigger }: InviteUserDialogProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
             <FormField
               control={form.control}
-              name='email'
+              name='emails'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Invite emails</FormLabel>
                   <FormControl>
-                    <Input placeholder='client@example.com' {...field} />
+                    <EmailMultiInput
+                      value={field.value ?? []}
+                      onChange={(emails) =>
+                        form.setValue('emails', emails, {
+                          shouldDirty: true,
+                          shouldValidate: true
+                        })
+                      }
+                      disabled={isPending}
+                      aria-describedby={field.name}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,7 +150,7 @@ export function InviteUserDialog({ clientId, trigger }: InviteUserDialogProps) {
             />
             <DialogFooter>
               <Button type='submit' disabled={isPending}>
-                {isPending ? 'Sending…' : 'Send Invite'}
+                {isPending ? 'Sending…' : 'Send invites'}
               </Button>
             </DialogFooter>
           </form>

@@ -36,6 +36,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { createClientAction, inviteUserAction } from '@/lib/client-actions';
+import { EmailMultiInput } from '@/components/ui/email-multi-input';
 import type { ClientRole } from '@prisma/client';
 
 const clientSchema = z.object({
@@ -46,7 +47,9 @@ const clientSchema = z.object({
 });
 
 const inviteSchema = z.object({
-  email: z.string().email('Enter a valid email'),
+  emails: z
+    .array(z.string().email('Enter a valid email'))
+    .min(1, 'Add at least one email'),
   role: z.enum(['CLIENT_ADMIN', 'CLIENT_VIEWER'])
 });
 
@@ -69,7 +72,7 @@ export function CreateClientDialog() {
 
   const inviteForm = useForm<InviteFormValues>({
     resolver: zodResolver(inviteSchema),
-    defaultValues: { email: '', role: 'CLIENT_VIEWER' }
+    defaultValues: { emails: [], role: 'CLIENT_VIEWER' }
   });
 
   const handleClose = () => {
@@ -79,7 +82,7 @@ export function CreateClientDialog() {
       setCreatedClientId(null);
       setCreatedClientName('');
       clientForm.reset({ startCrawl: true });
-      inviteForm.reset({ email: '', role: 'CLIENT_VIEWER' });
+      inviteForm.reset({ emails: [], role: 'CLIENT_VIEWER' });
     }, 200);
   };
 
@@ -92,7 +95,7 @@ export function CreateClientDialog() {
         toast.success('Client created', {
           description: 'Organization and crawl have been scheduled.'
         });
-        inviteForm.reset({ email: '', role: 'CLIENT_VIEWER' });
+        inviteForm.reset({ emails: [], role: 'CLIENT_VIEWER' });
         setStep('invite');
       } catch (error: unknown) {
         const message = (error as Error)?.message || 'Failed to create client.';
@@ -106,16 +109,23 @@ export function CreateClientDialog() {
 
     startInviteTransition(async () => {
       try {
-        await inviteUserAction({
-          clientId: createdClientId,
-          email: values.email,
-          role: values.role as Extract<
-            ClientRole,
-            'CLIENT_ADMIN' | 'CLIENT_VIEWER'
-          >
-        });
-        toast.success('Invite sent', {
-          description: `${values.email} will receive a Clerk organization invite.`
+        await Promise.all(
+          values.emails.map((email) =>
+            inviteUserAction({
+              clientId: createdClientId,
+              email,
+              role: values.role as Extract<
+                ClientRole,
+                'CLIENT_ADMIN' | 'CLIENT_VIEWER'
+              >
+            })
+          )
+        );
+        toast.success('Invites sent', {
+          description:
+            values.emails.length === 1
+              ? `${values.emails[0]} will receive a Clerk organization invite.`
+              : `${values.emails.length} collaborators will receive Clerk invites.`
         });
         handleClose();
         router.push(`/dashboard/${createdClientId}/overview`);
@@ -245,12 +255,22 @@ export function CreateClientDialog() {
               >
                 <FormField
                   control={inviteForm.control}
-                  name='email'
+                  name='emails'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Invite emails</FormLabel>
                       <FormControl>
-                        <Input placeholder='client@example.com' {...field} />
+                        <EmailMultiInput
+                          value={field.value ?? []}
+                          onChange={(emails) =>
+                            inviteForm.setValue('emails', emails, {
+                              shouldDirty: true,
+                              shouldValidate: true
+                            })
+                          }
+                          disabled={isInvitePending}
+                          aria-describedby={field.name}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -284,7 +304,7 @@ export function CreateClientDialog() {
                     </FormItem>
                   )}
                 />
-                <DialogFooter className='gap-2 sm:gap-0'>
+                <DialogFooter className='gap-4 sm:gap-0'>
                   <Button
                     type='button'
                     variant='outline'
@@ -294,7 +314,7 @@ export function CreateClientDialog() {
                     Skip for now
                   </Button>
                   <Button type='submit' disabled={isInvitePending}>
-                    {isInvitePending ? 'Sending…' : 'Send Invite'}
+                    {isInvitePending ? 'Sending…' : 'Send invites'}
                   </Button>
                 </DialogFooter>
               </form>

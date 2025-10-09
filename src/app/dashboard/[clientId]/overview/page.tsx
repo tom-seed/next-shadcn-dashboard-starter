@@ -1,4 +1,8 @@
 // src/app/dashboard/[clientId]/overview/page.tsx
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { auth } from '@clerk/nextjs/server';
+import { ClientRole } from '@prisma/client';
 import LiveAuditGate from './LiveAuditGate';
 import {
   Card,
@@ -6,13 +10,17 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  CardAction,
   CardContent
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
 import { DoughnutGraph } from '@/features/overview/components/doughnut-graph';
-import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
+import {
+  IconTrendingUp,
+  IconTrendingDown,
+  IconAlertTriangle,
+  IconCircleCheck,
+  IconArrowUpRight
+} from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { getTrend } from '@/lib/helpers/getTrend';
 import { CrawlLoadingSpinner } from '@/components/ui/crawl-loading-spinner';
@@ -24,8 +32,11 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { Heading } from '@/components/ui/heading';
+import { Button } from '@/components/ui/button';
 import { getClientOverviewData } from '@/features/overview/lib/get-client-overview-data';
 import { ClientHeader } from '@/components/common/client-header';
+import { ensureClientAccess } from '@/lib/auth/memberships';
+import { AuditProgressChart } from '@/features/overview/components/audit-progress-chart';
 
 export default async function ClientOverviewPage({
   params
@@ -33,10 +44,34 @@ export default async function ClientOverviewPage({
   params: Promise<{ clientId: string }>;
 }) {
   const { clientId } = await params;
-  const cid = Number(clientId);
+  const { userId } = await auth();
 
-  const { client, latest, previous, latestCrawl } =
-    await getClientOverviewData(cid);
+  if (!userId) {
+    redirect('/auth/sign-in');
+  }
+
+  const cid = Number(clientId);
+  if (!Number.isFinite(cid)) {
+    notFound();
+  }
+
+  const [membership, overview] = await Promise.all([
+    ensureClientAccess(userId, cid),
+    getClientOverviewData(cid)
+  ]);
+
+  if (!membership) {
+    notFound();
+  }
+
+  const { client, latest, previous, latestCrawl } = overview;
+
+  const AGENCY_ROLES = new Set<ClientRole>([
+    ClientRole.INTERNAL_ADMIN,
+    ClientRole.AGENCY_ADMIN,
+    ClientRole.AGENCY_ANALYST
+  ]);
+  const isAgencyUser = AGENCY_ROLES.has(membership.role);
 
   const shouldListenForUpdates = !latest || latestCrawl?.state === 'STARTED';
 
@@ -115,10 +150,33 @@ export default async function ClientOverviewPage({
     .sort((a, b) => a.delta - b.delta)
     .slice(0, TOP_LIMIT);
 
+  const severityTotals: Record<Severity, number> = {
+    Alert: 0,
+    Warning: 0,
+    Opportunity: 0
+  };
+  for (const entry of issueDeltas) {
+    severityTotals[entry.severity] += entry.latest ?? 0;
+  }
+
+  const totalOpenIssues = Object.values(severityTotals).reduce(
+    (acc, count) => acc + count,
+    0
+  );
+
+  const resolvedIssuesCount = issueDeltas
+    .filter((entry) => entry.delta < 0)
+    .reduce((acc, entry) => acc + Math.abs(entry.delta), 0);
+
+  const newIssuesCount = issueDeltas
+    .filter((entry) => entry.delta > 0)
+    .reduce((acc, entry) => acc + entry.delta, 0);
+
   type TrendMetric =
     | 'pages_200_response'
     | 'pages_3xx_response'
     | 'pages_4xx_response'
+    | 'pages_5xx_response'
     | 'score';
 
   const getTrendInfo = (
@@ -172,22 +230,64 @@ export default async function ClientOverviewPage({
     return { badge, direction: realDirection };
   };
 
-  const { badge: trend200, direction: dir200 } =
-    getTrendInfo('pages_200_response');
-  const { badge: trend3xx, direction: dir3xx } = getTrendInfo(
+  const { badge: trendScore } = getTrendInfo('score');
+  const { badge: trend200 } = getTrendInfo('pages_200_response');
+  const { badge: trend3xx } = getTrendInfo(
     'pages_3xx_response',
     true,
     'Increase in 3xx redirects may indicate redirect chains or misconfigurations.'
   );
-  const { badge: trend4xx, direction: dir4xx } = getTrendInfo(
-    'pages_4xx_response',
-    true
-  );
-  const { badge: trendScore, direction: dirScore } = getTrendInfo('score');
+  const { badge: trend4xx } = getTrendInfo('pages_4xx_response', true);
+  const { badge: trend5xx } = getTrendInfo('pages_5xx_response', true);
 
-  const lastCrawlClean = latest?.createdAt
+  const lastAuditAt = latest?.createdAt
     ? new Date(latest.createdAt).toLocaleString()
     : 'N/A';
+
+  const latestCrawlAt = latestCrawl?.createdAt
+    ? new Date(latestCrawl.createdAt).toLocaleString()
+    : null;
+
+  const latestCrawlStateLabel = latestCrawl?.state
+    ? latestCrawl.state === 'STARTED'
+      ? 'In progress'
+      : latestCrawl.state === 'COMPLETED'
+        ? 'Completed'
+        : 'Aborted'
+    : 'Not started';
+
+  const crawlStatusBadgeClass =
+    latestCrawl?.state === 'COMPLETED'
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 border-transparent'
+      : latestCrawl?.state === 'STARTED'
+        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border-transparent'
+        : latestCrawl?.state === 'ABORTED'
+          ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300 border-transparent'
+          : '';
+
+  const severityStyles: Record<Severity, string> = {
+    Alert: 'text-red-600 dark:text-red-400',
+    Warning: 'text-amber-600 dark:text-amber-400',
+    Opportunity: 'text-sky-600 dark:text-sky-400'
+  };
+
+  const quickLinks = [
+    {
+      label: 'Audit comparison',
+      description: 'Review changes between crawls',
+      href: `/dashboard/${cid}/audits`
+    },
+    {
+      label: 'URL inventory',
+      description: 'Inspect crawled pages and filters',
+      href: `/dashboard/${cid}/urls`
+    },
+    {
+      label: 'Client settings',
+      description: 'Manage domains, members and integrations',
+      href: `/dashboard/${cid}/settings`
+    }
+  ];
 
   return (
     <PageContainer>
@@ -206,247 +306,363 @@ export default async function ClientOverviewPage({
           </p>
         </div>
       ) : (
-        <div className='flex flex-1 flex-col space-y-2'>
-          <div className='flex items-center justify-between'>
-            <Heading
-              title={`${client?.name} Overview`}
-              description={`Last Crawl: ${lastCrawlClean}`}
-            />
-            <div className='flex items-center gap-2'>
-              <ClientHeader clientId={cid} />
-              {client && client.url && (
-                <ReCrawlButton clientId={String(client.id)} url={client.url} />
+        <div className='flex flex-1 flex-col gap-8'>
+          <div className='flex flex-wrap items-start justify-between gap-4'>
+            <div className='space-y-2'>
+              <Heading
+                title={client?.name ?? 'Client overview'}
+                description={client?.url ?? 'Website URL not set'}
+              />
+              <p className='text-muted-foreground text-sm'>
+                Last audit: {lastAuditAt}
+              </p>
+              {latestCrawl?.state && latestCrawlAt && (
+                <p className='text-muted-foreground text-xs'>
+                  Latest crawl {latestCrawlStateLabel.toLowerCase()} ·{' '}
+                  {latestCrawlAt}
+                </p>
+              )}
+            </div>
+            <div className='flex flex-wrap items-center gap-2'>
+              {isAgencyUser && (
+                <Badge variant='outline' className='tracking-wide uppercase'>
+                  Agency access
+                </Badge>
               )}
             </div>
           </div>
 
-          {/* ROW 1: Primary visuals */}
-          <div className='mb-6 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-7'>
-            <div className='col-span-4'>
-              <div className='h-full'>
-                <AreaGraphStatusCodes />
+          <section>
+            <div className='grid gap-4 md:grid-cols-5'>
+              <div className='col-span-2 flex flex-col gap-3'>
+                <DoughnutGraph auditScore={latest?.score ?? 0} />
+              </div>
+              <div className='col-span-3'>
+                <AuditProgressChart />
               </div>
             </div>
-            <div className='col-span-3'>
-              <div className='h-full'>
-                <DoughnutGraph auditScore={latest?.score || 0} />
-              </div>
+          </section>
+
+          <section>
+            <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
+              Snapshot
+            </h2>
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+              <Card>
+                <CardHeader>
+                  <CardDescription>Unresolved issues</CardDescription>
+                  <CardTitle className='text-3xl font-semibold tabular-nums'>
+                    {totalOpenIssues}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-4 text-sm'>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <span
+                        className={`${severityStyles.Alert} flex items-center gap-2 font-medium`}
+                      >
+                        <IconAlertTriangle className='h-4 w-4' /> Critical
+                      </span>
+                      <span className='font-medium'>
+                        {severityTotals.Alert}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span
+                        className={`${severityStyles.Warning} flex items-center gap-2 font-medium`}
+                      >
+                        <IconAlertTriangle className='h-4 w-4' /> Warning
+                      </span>
+                      <span className='font-medium'>
+                        {severityTotals.Warning}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span
+                        className={`${severityStyles.Opportunity} flex items-center gap-2 font-medium`}
+                      >
+                        <IconCircleCheck className='h-4 w-4' /> Opportunity
+                      </span>
+                      <span className='font-medium'>
+                        {severityTotals.Opportunity}
+                      </span>
+                    </div>
+                  </div>
+                  <p className='text-muted-foreground text-xs'>
+                    Totals represent pages still impacted in the latest crawl.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardDescription>Since last audit</CardDescription>
+                  <CardTitle className='text-xl font-semibold'>
+                    Progress snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-4 text-sm'>
+                  <div className='flex items-center justify-between rounded-md border border-green-100 bg-green-50 px-3 py-2 text-green-700 dark:border-green-900/40 dark:bg-green-900/20 dark:text-green-300'>
+                    <span className='flex items-center gap-2 font-medium'>
+                      <IconCircleCheck className='h-4 w-4' /> Resolved
+                    </span>
+                    <span className='text-2xl font-semibold tabular-nums'>
+                      {resolvedIssuesCount}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between rounded-md border border-red-100 bg-red-50 px-3 py-2 text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300'>
+                    <span className='flex items-center gap-2 font-medium'>
+                      <IconAlertTriangle className='h-4 w-4' /> New issues
+                    </span>
+                    <span className='text-2xl font-semibold tabular-nums'>
+                      {newIssuesCount}
+                    </span>
+                  </div>
+                  <p className='text-muted-foreground text-xs'>
+                    Keep resolving issues faster than new ones appear to sustain
+                    positive momentum.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardDescription>Since last audit</CardDescription>
+                  <CardTitle className='text-xl font-semibold'>
+                    Status Code Trends
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='grid gap-3 sm:grid-cols-2'>
+                  <div className='bg-muted/40 rounded-md border p-3'>
+                    <p className='text-muted-foreground text-xs tracking-wide uppercase'>
+                      2xx success
+                    </p>
+                    <div className='mt-1 flex items-baseline justify-between'>
+                      <span className='text-3xl font-semibold tabular-nums'>
+                        {latest?.pages_200_response ?? 0}
+                      </span>
+                      <span className='text-xs'>{trend200 || '–'}</span>
+                    </div>
+                  </div>
+                  <div className='bg-muted/40 rounded-md border p-3'>
+                    <p className='text-muted-foreground text-xs tracking-wide uppercase'>
+                      3xx redirects
+                    </p>
+                    <div className='mt-1 flex items-baseline justify-between'>
+                      <span className='text-3xl font-semibold tabular-nums'>
+                        {latest?.pages_3xx_response ?? 0}
+                      </span>
+                      <span className='text-xs'>{trend3xx || '–'}</span>
+                    </div>
+                  </div>
+                  <div className='bg-muted/40 rounded-md border p-3'>
+                    <p className='text-muted-foreground text-xs tracking-wide uppercase'>
+                      4xx client errors
+                    </p>
+                    <div className='mt-1 flex items-baseline justify-between'>
+                      <span className='text-3xl font-semibold tabular-nums'>
+                        {latest?.pages_4xx_response ?? 0}
+                      </span>
+                      <span className='text-xs'>{trend4xx || '–'}</span>
+                    </div>
+                  </div>
+                  <div className='bg-muted/40 rounded-md border p-3'>
+                    <p className='text-muted-foreground text-xs tracking-wide uppercase'>
+                      5xx server errors
+                    </p>
+                    <div className='mt-1 flex items-baseline justify-between'>
+                      <span className='text-3xl font-semibold tabular-nums'>
+                        {latest?.pages_5xx_response ?? 0}
+                      </span>
+                      <span className='text-xs'>{trend5xx || '–'}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </div>
+          </section>
 
-          {/* ROW 2: KPIs */}
-          <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-4'>
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardDescription>Pages Crawled</CardDescription>
-                <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                  {latest?.pages_200_response || 0}
-                </CardTitle>
-                <CardAction>{trend200}</CardAction>
-              </CardHeader>
-              <CardFooter className='flex-col items-start gap-1.5 text-sm'>
-                <div className='line-clamp-1 flex gap-2 font-medium'>
-                  {dir200 === 'up'
-                    ? 'Trending up'
-                    : dir200 === 'down'
-                      ? 'Trending down'
-                      : 'No change'}
-                </div>
-                <div className='text-muted-foreground'>
-                  Successful pages (200 OK)
-                </div>
-              </CardFooter>
-            </Card>
+          <section>
+            <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
+              Issue highlights
+            </h2>
+            <div className='grid gap-4 md:grid-cols-2'>
+              <Card className='@container/card'>
+                <CardHeader>
+                  <CardTitle className='mb-2'>Rising issues</CardTitle>
+                  <CardDescription>
+                    {newIssuesCount > 0
+                      ? `${newIssuesCount} new issues since last audit`
+                      : 'No new issues detected'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {topTrendingUp.length === 0 ? (
+                    <div className='text-muted-foreground text-sm'>
+                      No increases.
+                    </div>
+                  ) : (
+                    <ul className='space-y-2'>
+                      {topTrendingUp.map((e) => (
+                        <li key={e.key}>
+                          <Link
+                            href={`/dashboard/${cid}/audits/issues/${e.key.replace(/_/g, '-')}`}
+                            className='hover:border-border hover:bg-muted/40 flex items-center justify-between rounded-md border border-transparent px-3 py-2 transition-colors'
+                          >
+                            <div className='flex items-center gap-2'>
+                              <Badge variant='secondary'>{e.severity}</Badge>
+                              <span className='font-medium'>
+                                {prettyIssue(e.key)}
+                              </span>
+                            </div>
+                            <div className='flex items-center gap-1 font-medium'>
+                              <IconTrendingUp className='h-4 w-4' />
+                              <span>+{e.delta}</span>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
 
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardDescription>Redirects (3xx)</CardDescription>
-                <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                  {latest?.pages_3xx_response || 0}
-                </CardTitle>
-                <CardAction>{trend3xx}</CardAction>
-              </CardHeader>
-              <CardFooter className='flex-col items-start gap-1.5 text-sm'>
-                <div className='line-clamp-1 flex gap-2 font-medium'>
-                  {dir3xx === 'up'
-                    ? 'Trending up'
-                    : dir3xx === 'down'
-                      ? 'Trending down'
-                      : 'No change'}
-                </div>
-                <div className='text-muted-foreground'>
-                  Redirects and chains (3xx)
-                </div>
-              </CardFooter>
-            </Card>
+              <Card className='@container/card'>
+                <CardHeader>
+                  <CardTitle className='mb-2'>Resolved wins</CardTitle>
+                  <CardDescription>
+                    {resolvedIssuesCount > 0
+                      ? `${resolvedIssuesCount} pages improved since last audit`
+                      : 'No changes detected'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {topTrendingDown.length === 0 ? (
+                    <div className='text-muted-foreground text-sm'>
+                      No decreases.
+                    </div>
+                  ) : (
+                    <ul className='space-y-2'>
+                      {topTrendingDown.map((e) => (
+                        <li key={e.key}>
+                          <Link
+                            href={`/dashboard/${cid}/audits/issues/${e.key.replace(/_/g, '-')}`}
+                            className='hover:border-border hover:bg-muted/40 flex items-center justify-between rounded-md border border-transparent px-3 py-2 transition-colors'
+                          >
+                            <div className='flex items-center gap-2'>
+                              <Badge variant='secondary'>{e.severity}</Badge>
+                              <span className='font-medium'>
+                                {prettyIssue(e.key)}
+                              </span>
+                            </div>
+                            <div className='flex items-center gap-1 font-medium'>
+                              <IconTrendingDown className='h-4 w-4' />
+                              <span>{e.delta}</span>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardDescription>Client Errors (4xx)</CardDescription>
-                <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                  {latest?.pages_4xx_response || 0}
-                </CardTitle>
-                <CardAction>{trend4xx}</CardAction>
-              </CardHeader>
-              <CardFooter className='flex-col items-start gap-1.5 text-sm'>
-                <div className='line-clamp-1 flex gap-2 font-medium'>
-                  {dir4xx === 'up'
-                    ? 'Trending up'
-                    : dir4xx === 'down'
-                      ? 'Trending down'
-                      : 'No change'}
-                </div>
-                <div className='text-muted-foreground'>Client errors (4xx)</div>
-              </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardDescription>Audit Score</CardDescription>
-                <CardTitle className='text-3xl font-bold tabular-nums'>
-                  {latest?.score ?? '—'}/100
-                </CardTitle>
-                <CardAction>{trendScore}</CardAction>
-              </CardHeader>
-              <CardFooter className='text-muted-foreground text-sm'>
-                {dirScore === 'up'
-                  ? 'Improved since last audit'
-                  : dirScore === 'down'
-                    ? 'Worsened since last audit'
-                    : 'No change from last audit'}
-              </CardFooter>
-            </Card>
-          </div>
-
-          {/* ROW 3: Trending lists */}
-          <div className='*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card mb-6 grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs md:grid-cols-2 lg:grid-cols-2'>
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardTitle className='mb-2'>Top Trending Issues</CardTitle>
-                <CardDescription>Increased since last audit</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {topTrendingUp.length === 0 ? (
-                  <div className='text-muted-foreground text-sm'>
-                    No increases.
-                  </div>
-                ) : (
-                  <ul className='space-y-2'>
-                    {topTrendingUp.map((e) => (
-                      <li
-                        key={e.key}
-                        className='flex items-center justify-between'
+          {isAgencyUser && (
+            <section className='mb-6 space-y-3'>
+              <h2 className='text-muted-foreground text-xs font-semibold tracking-wide uppercase'>
+                Agency tools
+              </h2>
+              <div className='grid gap-4 lg:grid-cols-3'>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Latest crawl</CardTitle>
+                    <CardDescription>Monitor crawl operations</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-3 text-sm'>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-muted-foreground'>Status</span>
+                      <Badge
+                        variant='outline'
+                        className={`capitalize ${crawlStatusBadgeClass}`.trim()}
                       >
-                        <div className='flex items-center gap-2'>
-                          <Badge variant='secondary'>{e.severity}</Badge>
-                          <span>{prettyIssue(e.key)}</span>
-                        </div>
-                        <div className='flex items-center gap-1 font-medium'>
-                          <IconTrendingUp className='h-4 w-4' />
-                          <span>+{e.delta}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+                        {latestCrawlStateLabel}
+                      </Badge>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-muted-foreground'>Started</span>
+                      <span className='font-medium'>
+                        {latestCrawlAt ?? 'Not available'}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-muted-foreground'>Crawl ID</span>
+                      <span className='font-mono text-xs'>
+                        {latestCrawl?.id ?? '—'}
+                      </span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className='flex flex-wrap gap-2'>
+                    {client?.url && (
+                      <ReCrawlButton
+                        clientId={String(client.id)}
+                        url={client.url}
+                      />
+                    )}
+                    <Button variant='outline' size='sm' asChild>
+                      <Link href={`/dashboard/${cid}/audits`}>
+                        View audit timeline
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
 
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardTitle className='mb-2'>Top Falling Issues</CardTitle>
-                <CardDescription>Decreased since last audit</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {topTrendingDown.length === 0 ? (
-                  <div className='text-muted-foreground text-sm'>
-                    No decreases.
-                  </div>
-                ) : (
-                  <ul className='space-y-2'>
-                    {topTrendingDown.map((e) => (
-                      <li
-                        key={e.key}
-                        className='flex items-center justify-between'
-                      >
-                        <div className='flex items-center gap-2'>
-                          <Badge variant='secondary'>{e.severity}</Badge>
-                          <span>{prettyIssue(e.key)}</span>
-                        </div>
-                        <div className='flex items-center gap-1 font-medium'>
-                          <IconTrendingDown className='h-4 w-4' />
-                          <span>{e.delta}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardTitle className='mb-2'>Top Trending Issues</CardTitle>
-                <CardDescription>Increased since last audit</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {topTrendingUp.length === 0 ? (
-                  <div className='text-muted-foreground text-sm'>
-                    No increases.
-                  </div>
-                ) : (
-                  <ul className='space-y-2'>
-                    {topTrendingUp.map((e) => (
-                      <li
-                        key={e.key}
-                        className='flex items-center justify-between'
-                      >
-                        <div className='flex items-center gap-2'>
-                          <Badge variant='secondary'>{e.severity}</Badge>
-                          <span>{prettyIssue(e.key)}</span>
-                        </div>
-                        <div className='flex items-center gap-1 font-medium'>
-                          <IconTrendingUp className='h-4 w-4' />
-                          <span>+{e.delta}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Quick links</CardTitle>
+                    <CardDescription>Jump into deeper analysis</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-2 text-sm'>
+                    <ul className='space-y-2'>
+                      {quickLinks.map((link) => (
+                        <li key={link.href}>
+                          <Link
+                            href={link.href}
+                            className='hover:border-border hover:bg-muted/40 flex items-center justify-between rounded-md border border-transparent px-3 py-2 transition-colors'
+                          >
+                            <div>
+                              <p className='font-medium'>{link.label}</p>
+                              <p className='text-muted-foreground text-xs'>
+                                {link.description}
+                              </p>
+                            </div>
+                            <IconArrowUpRight className='text-muted-foreground h-4 w-4' />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
 
-            <Card className='@container/card'>
-              <CardHeader>
-                <CardTitle className='mb-2'>Top Falling Issues</CardTitle>
-                <CardDescription>Decreased since last audit</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {topTrendingDown.length === 0 ? (
-                  <div className='text-muted-foreground text-sm'>
-                    No decreases.
-                  </div>
-                ) : (
-                  <ul className='space-y-2'>
-                    {topTrendingDown.map((e) => (
-                      <li
-                        key={e.key}
-                        className='flex items-center justify-between'
-                      >
-                        <div className='flex items-center gap-2'>
-                          <Badge variant='secondary'>{e.severity}</Badge>
-                          <span>{prettyIssue(e.key)}</span>
-                        </div>
-                        <div className='flex items-center gap-1 font-medium'>
-                          <IconTrendingDown className='h-4 w-4' />
-                          <span>{e.delta}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Collaboration</CardTitle>
+                    <CardDescription>
+                      Manage access and share progress updates
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className='text-muted-foreground text-sm'>
+                    Invite teammates to review audits or assign follow-up
+                    actions directly from Atlas.
+                  </CardContent>
+                  <CardFooter>
+                    <ClientHeader clientId={cid} showInvite={isAgencyUser} />
+                  </CardFooter>
+                </Card>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </PageContainer>

@@ -22,6 +22,7 @@ interface UrlTableProps<TData, TValue> {
   initialPerPage: number;
   onSortingChange?: OnChangeFn<SortingState>;
   onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
+  isLoading?: boolean;
 }
 
 export function UrlTable<TData, TValue>({
@@ -31,7 +32,8 @@ export function UrlTable<TData, TValue>({
   initialPage,
   initialPerPage,
   onSortingChange,
-  onColumnFiltersChange
+  onColumnFiltersChange,
+  isLoading = false
 }: UrlTableProps<TData, TValue>) {
   const [perPage] = useQueryState(
     'perPage',
@@ -83,7 +85,7 @@ export function UrlTable<TData, TValue>({
   });
 
   return (
-    <DataTable table={table}>
+    <DataTable table={table} aria-busy={isLoading}>
       <DataTableToolbar table={table} />
     </DataTable>
   );

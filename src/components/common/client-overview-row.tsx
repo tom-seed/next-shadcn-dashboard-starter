@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DeleteClientDialog } from '@/components/common/delete-client-dialog';
-import { IconTrash } from '@tabler/icons-react';
+import { IconArrowUpRight, IconTrash } from '@tabler/icons-react';
 import type { getClientsOverviewForUser } from '@/lib/getClientOverview';
 
 type ClientData = Awaited<ReturnType<typeof getClientsOverviewForUser>>[0];
@@ -54,28 +54,49 @@ export function ClientOverviewRow({
 
   return (
     <div className='hover:bg-muted/50 grid grid-cols-6 items-start gap-4 p-4 transition-colors'>
-      <div className='col-span-2 space-y-3'>
-        <Link href={`/dashboard/${client.id}/overview`}>
-          <div className='cursor-pointer'>
-            <p className='font-medium'>{client.name}</p>
-            <p className='text-muted-foreground text-sm'>{client.url}</p>
+      <div className='col-span-2 flex flex-col gap-2'>
+        <div className='flex flex-wrap items-start justify-between gap-3'>
+          <Link
+            href={`/dashboard/${client.id}/overview`}
+            className='min-w-0 flex-1'
+          >
+            <div className='cursor-pointer'>
+              <p className='font-medium'>{client.name}</p>
+              <p
+                className='text-muted-foreground truncate text-sm'
+                title={client.url ?? undefined}
+              >
+                {client.url}
+              </p>
+            </div>
+          </Link>
+          <div className='flex items-center gap-2'>
+            <Button variant='outline' size='icon' asChild>
+              <Link
+                href={`/dashboard/${client.id}/overview`}
+                aria-label={`Open ${client.name}`}
+                title='Open client overview'
+              >
+                <IconArrowUpRight className='h-4 w-4' />
+              </Link>
+            </Button>
+            {showDelete && (
+              <DeleteClientDialog
+                clientId={client.id}
+                clientName={client.name}
+                trigger={
+                  <Button
+                    variant='outline'
+                    size='icon'
+                    aria-label={`Delete ${client.name}`}
+                    title='Delete client'
+                  >
+                    <IconTrash className='h-4 w-4' />
+                  </Button>
+                }
+              />
+            )}
           </div>
-        </Link>
-        <div className='flex gap-2'>
-          <Button variant='outline' size='sm' asChild>
-            <Link href={`/dashboard/${client.id}/overview`}>Open Client</Link>
-          </Button>
-          {showDelete && (
-            <DeleteClientDialog
-              clientId={client.id}
-              clientName={client.name}
-              trigger={
-                <Button variant='outline' size='sm'>
-                  <IconTrash className='h-4 w-4' />
-                </Button>
-              }
-            />
-          )}
         </div>
       </div>
       <div className='font-medium'>{healthScore}</div>

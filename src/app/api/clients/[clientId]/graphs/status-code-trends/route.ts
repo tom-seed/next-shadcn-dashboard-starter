@@ -34,26 +34,47 @@ export async function GET(req: NextRequest) {
     const audits = await prisma.audit.findMany({
       where: { clientId: id },
       orderBy: { createdAt: 'asc' },
-      select: {
-        createdAt: true,
-        pages_200_response: true,
-        pages_3xx_response: true,
-        pages_4xx_response: true,
-        pages_5xx_response: true
-      },
       cacheStrategy: {
         ttl: 0,
         swr: 60
       }
     });
 
-    const trendData = audits.map((audit) => ({
-      date: audit.createdAt.toISOString().split('T')[0],
-      '2xx': audit.pages_200_response ?? 0,
-      '3xx': audit.pages_3xx_response ?? 0,
-      '4xx': audit.pages_4xx_response ?? 0,
-      '5xx': audit.pages_5xx_response ?? 0
-    }));
+    const EXCLUDE_KEYS = new Set([
+      'id',
+      'clientId',
+      'crawlId',
+      'createdAt',
+      'updatedAt',
+      'score',
+      'pages_200_response',
+      'pages_3xx_response',
+      'pages_4xx_response',
+      'pages_5xx_response'
+    ]);
+
+    const trendData = audits.map((audit) => {
+      const totals = Object.entries(audit).reduce(
+        (acc, [key, value]) => {
+          if (EXCLUDE_KEYS.has(key)) return acc;
+          if (typeof value === 'number') {
+            acc.totalIssues += value ?? 0;
+          }
+          return acc;
+        },
+        { totalIssues: 0 }
+      );
+
+      return {
+        date: audit.createdAt.toISOString().split('T')[0],
+        '2xx': audit.pages_200_response ?? 0,
+        '3xx': audit.pages_3xx_response ?? 0,
+        '4xx': audit.pages_4xx_response ?? 0,
+        '5xx': audit.pages_5xx_response ?? 0,
+        pagesCrawled: audit.pages_200_response ?? 0,
+        totalIssues: totals.totalIssues
+      };
+    });
 
     return NextResponse.json({ data: trendData });
   } catch (error) {
