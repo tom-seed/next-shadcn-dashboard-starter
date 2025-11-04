@@ -4,7 +4,7 @@ import {
   Inter,
   Mulish,
   Noto_Sans_Mono,
-  Outfit
+  Plus_Jakarta_Sans
 } from 'next/font/google';
 
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ const fontMono = Geist_Mono({
   variable: '--font-mono'
 });
 
-const fontSans = Outfit({
+const fontSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-sans'
 });

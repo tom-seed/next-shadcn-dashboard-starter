@@ -86,7 +86,37 @@ export default async function ClientOverviewPage({
     'pages_200_response',
     'pages_3xx_response',
     'pages_4xx_response',
-    'pages_5xx_response'
+    'pages_5xx_response',
+    // Exclude aggregated counts since we show detailed breakdowns
+    'pages_301_permanent',
+    'pages_302_temporary',
+    'pages_303_see_other',
+    'pages_307_temporary',
+    'pages_308_permanent',
+    'pages_3xx_other',
+    'pages_401_unauthorized',
+    'pages_403_forbidden',
+    'pages_404_not_found',
+    'pages_405_method_not_allowed',
+    'pages_408_timeout',
+    'pages_410_gone',
+    'pages_429_rate_limited',
+    'pages_4xx_other',
+    'pages_500_internal_error',
+    'pages_502_bad_gateway',
+    'pages_503_unavailable',
+    'pages_504_timeout',
+    'pages_5xx_other',
+    // Exclude image metrics since they have dedicated section
+    'total_images',
+    'pages_with_images_missing_alt',
+    'pages_with_images_empty_alt',
+    'pages_with_images_missing_dimensions',
+    'pages_with_unoptimized_image_format',
+    'total_images_missing_alt',
+    'total_images_empty_alt',
+    'total_images_missing_dimensions',
+    'total_images_unoptimized_format'
   ]);
 
   type Severity = 'Alert' | 'Warning' | 'Opportunity';
@@ -301,9 +331,6 @@ export default async function ClientOverviewPage({
       {!latest ? (
         <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>
           <CrawlLoadingSpinner />
-          <p className='text-muted-foreground'>
-            Awaiting first crawl to complete...
-          </p>
         </div>
       ) : (
         <div className='flex flex-1 flex-col gap-8'>
@@ -476,6 +503,264 @@ export default async function ClientOverviewPage({
                       </span>
                       <span className='text-xs'>{trend5xx || '–'}</span>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Detailed Status Code Breakdown */}
+          <section>
+            <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
+              Detailed Status Codes
+            </h2>
+            <div className='grid gap-4 md:grid-cols-3'>
+              {/* 3xx Redirects */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-lg'>3xx Redirects</CardTitle>
+                  <CardDescription>
+                    Redirect status code breakdown
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-2 text-sm'>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>301 Permanent</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_301_permanent ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>302 Temporary</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_302_temporary ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>303 See Other</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_303_see_other ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>307 Temporary</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_307_temporary ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>308 Permanent</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_308_permanent ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>Other 3xx</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_3xx_other ?? 0}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 4xx Client Errors */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-lg'>4xx Client Errors</CardTitle>
+                  <CardDescription>Client error breakdown</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-2 text-sm'>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>
+                      401 Unauthorized
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_401_unauthorized ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>403 Forbidden</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_403_forbidden ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>404 Not Found</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_404_not_found ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>
+                      405 Method Not Allowed
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_405_method_not_allowed ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>408 Timeout</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_408_timeout ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>410 Gone</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_410_gone ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>
+                      429 Rate Limited
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_429_rate_limited ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>Other 4xx</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_4xx_other ?? 0}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 5xx Server Errors */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className='text-lg'>5xx Server Errors</CardTitle>
+                  <CardDescription>Server error breakdown</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-2 text-sm'>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>
+                      500 Internal Error
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_500_internal_error ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>
+                      502 Bad Gateway
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_502_bad_gateway ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>
+                      503 Unavailable
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_503_unavailable ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between border-b pb-2'>
+                    <span className='text-muted-foreground'>504 Timeout</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_504_timeout ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>Other 5xx</span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.pages_5xx_other ?? 0}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Image Audits */}
+          <section>
+            <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
+              Image Audits
+            </h2>
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+              <Card>
+                <CardHeader>
+                  <CardDescription>Total Images</CardDescription>
+                  <CardTitle className='text-3xl font-semibold tabular-nums'>
+                    {latest?.total_images ?? 0}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='text-muted-foreground text-sm'>
+                  Total number of images detected across all crawled pages.
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardDescription>Alt Text Issues</CardDescription>
+                  <CardTitle className='text-xl font-semibold'>
+                    Image Accessibility
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-3 text-sm'>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>
+                      Missing alt text
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.total_images_missing_alt ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>
+                      Empty alt text
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.total_images_empty_alt ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>
+                      Pages affected
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {(latest?.pages_with_images_missing_alt ?? 0) +
+                        (latest?.pages_with_images_empty_alt ?? 0)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardDescription>Optimization Issues</CardDescription>
+                  <CardTitle className='text-xl font-semibold'>
+                    Image Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className='space-y-3 text-sm'>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>
+                      Missing dimensions
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.total_images_missing_dimensions ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>
+                      Unoptimized format
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {latest?.total_images_unoptimized_format ?? 0}
+                    </span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>
+                      Pages affected
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {(latest?.pages_with_images_missing_dimensions ?? 0) +
+                        (latest?.pages_with_unoptimized_image_format ?? 0)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
