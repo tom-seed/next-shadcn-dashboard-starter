@@ -12,13 +12,6 @@ import PageContainer from '@/components/layout/page-container';
 import { AuditLoadingSpinner } from '@/components/ui/audit-loading-spinner';
 import { Heading } from '@/components/ui/heading';
 import { Separator } from '@/components/ui/separator';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@radix-ui/react-tooltip';
-import { Info } from 'lucide-react';
 
 type Props = {
   clientId: string;
@@ -165,21 +158,128 @@ export default function AuditComparisonView({ clientId }: Props) {
           ])}
 
           {/* Status Codes Section */}
-          {renderSection('Status Codes', [
+          {renderSection('Status Codes Overview', [
             renderRow(
-              '3xx Errors',
+              '3xx Redirects (Total)',
               'pages_3xx_response',
               `/dashboard/${clientId}/audits/issues/pages-3xx-response`
             ),
             renderRow(
-              '4xx Errors',
+              '4xx Client Errors (Total)',
               'pages_4xx_response',
               `/dashboard/${clientId}/audits/issues/pages-4xx-response`
             ),
             renderRow(
-              '5xx Errors',
+              '5xx Server Errors (Total)',
               'pages_5xx_response',
               `/dashboard/${clientId}/audits/issues/pages-5xx-response`
+            )
+          ])}
+
+          {/* 3xx Redirects Breakdown */}
+          {renderSection('3xx Redirects - Detailed', [
+            renderRow(
+              '301 Permanent Redirect',
+              'pages_301_permanent',
+              `/dashboard/${clientId}/audits/issues/pages-301-permanent`
+            ),
+            renderRow(
+              '302 Temporary Redirect',
+              'pages_302_temporary',
+              `/dashboard/${clientId}/audits/issues/pages-302-temporary`
+            ),
+            renderRow(
+              '303 See Other',
+              'pages_303_see_other',
+              `/dashboard/${clientId}/audits/issues/pages-303-see-other`
+            ),
+            renderRow(
+              '307 Temporary Redirect',
+              'pages_307_temporary',
+              `/dashboard/${clientId}/audits/issues/pages-307-temporary`
+            ),
+            renderRow(
+              '308 Permanent Redirect',
+              'pages_308_permanent',
+              `/dashboard/${clientId}/audits/issues/pages-308-permanent`
+            ),
+            renderRow(
+              'Other 3xx Codes',
+              'pages_3xx_other',
+              `/dashboard/${clientId}/audits/issues/pages-3xx-other`
+            )
+          ])}
+
+          {/* 4xx Client Errors Breakdown */}
+          {renderSection('4xx Client Errors - Detailed', [
+            renderRow(
+              '401 Unauthorized',
+              'pages_401_unauthorized',
+              `/dashboard/${clientId}/audits/issues/pages-401-unauthorized`
+            ),
+            renderRow(
+              '403 Forbidden',
+              'pages_403_forbidden',
+              `/dashboard/${clientId}/audits/issues/pages-403-forbidden`
+            ),
+            renderRow(
+              '404 Not Found',
+              'pages_404_not_found',
+              `/dashboard/${clientId}/audits/issues/pages-404-not-found`
+            ),
+            renderRow(
+              '405 Method Not Allowed',
+              'pages_405_method_not_allowed',
+              `/dashboard/${clientId}/audits/issues/pages-405-method-not-allowed`
+            ),
+            renderRow(
+              '408 Request Timeout',
+              'pages_408_timeout',
+              `/dashboard/${clientId}/audits/issues/pages-408-timeout`
+            ),
+            renderRow(
+              '410 Gone',
+              'pages_410_gone',
+              `/dashboard/${clientId}/audits/issues/pages-410-gone`
+            ),
+            renderRow(
+              '429 Too Many Requests',
+              'pages_429_rate_limited',
+              `/dashboard/${clientId}/audits/issues/pages-429-rate-limited`
+            ),
+            renderRow(
+              'Other 4xx Codes',
+              'pages_4xx_other',
+              `/dashboard/${clientId}/audits/issues/pages-4xx-other`
+            )
+          ])}
+
+          {/* 5xx Server Errors Breakdown */}
+          {renderSection('5xx Server Errors - Detailed', [
+            renderRow(
+              '500 Internal Server Error',
+              'pages_500_internal_error',
+              `/dashboard/${clientId}/audits/issues/pages-500-internal-error`
+            ),
+            renderRow(
+              '502 Bad Gateway',
+              'pages_502_bad_gateway',
+              `/dashboard/${clientId}/audits/issues/pages-502-bad-gateway`
+            ),
+            renderRow(
+              '503 Service Unavailable',
+              'pages_503_unavailable',
+              `/dashboard/${clientId}/audits/issues/pages-503-unavailable`
+            ),
+            renderRow(
+              '504 Gateway Timeout',
+              'pages_504_timeout',
+              `/dashboard/${clientId}/audits/issues/pages-504-timeout`
+            ),
+            renderRow(
+              'Other 5xx Codes',
+              'pages_5xx_other',
+              `/dashboard/${clientId}/audits/issues/pages-5xx-other`
             )
           ])}
 
@@ -311,6 +411,51 @@ export default function AuditComparisonView({ clientId }: Props) {
               'Duplicate H6',
               'pages_with_duplicate_h6s',
               `/dashboard/${clientId}/audits/issues/pages-with-duplicate-h6s`
+            )
+          ])}
+
+          {/* Image Audits Section */}
+          {renderSection('Image Audits', [
+            renderRow('Total Images', 'total_images'),
+            renderRow(
+              'Images Missing Alt Text',
+              'total_images_missing_alt',
+              `/dashboard/${clientId}/audits/issues/total-images-missing-alt`
+            ),
+            renderRow(
+              'Images with Empty Alt Text',
+              'total_images_empty_alt',
+              `/dashboard/${clientId}/audits/issues/total-images-empty-alt`
+            ),
+            renderRow(
+              'Images Missing Dimensions',
+              'total_images_missing_dimensions',
+              `/dashboard/${clientId}/audits/issues/total-images-missing-dimensions`
+            ),
+            renderRow(
+              'Images with Unoptimized Format',
+              'total_images_unoptimized_format',
+              `/dashboard/${clientId}/audits/issues/total-images-unoptimized-format`
+            ),
+            renderRow(
+              'Pages with Missing Alt Images',
+              'pages_with_images_missing_alt',
+              `/dashboard/${clientId}/audits/issues/pages-with-images-missing-alt`
+            ),
+            renderRow(
+              'Pages with Empty Alt Images',
+              'pages_with_images_empty_alt',
+              `/dashboard/${clientId}/audits/issues/pages-with-images-empty-alt`
+            ),
+            renderRow(
+              'Pages with Missing Dimension Images',
+              'pages_with_images_missing_dimensions',
+              `/dashboard/${clientId}/audits/issues/pages-with-images-missing-dimensions`
+            ),
+            renderRow(
+              'Pages with Unoptimized Images',
+              'pages_with_unoptimized_image_format',
+              `/dashboard/${clientId}/audits/issues/pages-with-unoptimized-image-format`
             )
           ])}
         </Accordion>
