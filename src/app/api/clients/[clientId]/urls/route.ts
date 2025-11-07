@@ -1,12 +1,10 @@
 // FILE: src/app/api/clients/[clientId]/urls/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient, Prisma } from '@prisma/client';
-import { withAccelerate } from '@prisma/extension-accelerate';
+import { Prisma } from '@prisma/client';
 import { auth } from '@clerk/nextjs/server';
 import { ensureClientAccess } from '@/lib/auth/memberships';
-
-const prisma = new PrismaClient().$extends(withAccelerate());
+import prisma from '@/lib/db';
 
 export async function GET(
   req: NextRequest,
@@ -165,11 +163,7 @@ export async function GET(
         where: whereClause,
         orderBy: orderBy.length > 0 ? orderBy : [{ createdAt: 'desc' }],
         skip,
-        take: perPage,
-        cacheStrategy: {
-          ttl: 30,
-          swr: 60
-        }
+        take: perPage
       }),
       prisma.urls.count({ where: whereClause })
     ]);

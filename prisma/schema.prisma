@@ -66,7 +66,7 @@ model Urls {
   crawlId                    Int?
   url                        String
   status                     Int?
-  originalStatus             String?
+  originalStatus             Int?
   redirectTarget             String?
   canonical                  String?
   canonicalStatus            Int?

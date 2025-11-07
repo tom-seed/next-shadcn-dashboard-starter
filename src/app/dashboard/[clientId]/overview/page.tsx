@@ -37,6 +37,8 @@ import { getClientOverviewData } from '@/features/overview/lib/get-client-overvi
 import { ClientHeader } from '@/components/common/client-header';
 import { ensureClientAccess } from '@/lib/auth/memberships';
 import { AuditProgressChart } from '@/features/overview/components/audit-progress-chart';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { IconAlertCircle } from '@tabler/icons-react';
 
 export default async function ClientOverviewPage({
   params
@@ -73,7 +75,19 @@ export default async function ClientOverviewPage({
   ]);
   const isAgencyUser = AGENCY_ROLES.has(membership.role);
 
-  const shouldListenForUpdates = !latest || latestCrawl?.state === 'STARTED';
+  // Detect if latest crawl was aborted without producing an audit
+  const crawlAbortedWithoutAudit =
+    latestCrawl?.state === 'ABORTED' &&
+    (!latest || (latest && latestCrawl.id !== latest.crawlId));
+
+  // Fall back to previous audit if latest crawl failed
+  const displayAudit = crawlAbortedWithoutAudit && previous ? previous : latest;
+  const comparisonAudit =
+    crawlAbortedWithoutAudit && previous ? latest : previous;
+
+  // Only listen for updates if no audit exists or crawl is actively running
+  const shouldListenForUpdates =
+    (!latest && !previous) || latestCrawl?.state === 'STARTED';
 
   // --- Helpers for issue deltas & labels ---
   const EXCLUDE_KEYS = new Set([
@@ -169,7 +183,10 @@ export default async function ClientOverviewPage({
     return entries;
   };
 
-  const issueDeltas = computeIssueDeltas(latest || {}, previous || {});
+  const issueDeltas = computeIssueDeltas(
+    displayAudit || {},
+    comparisonAudit || {}
+  );
   const TOP_LIMIT = 5;
   const topTrendingUp = issueDeltas
     .filter((e) => e.delta > 0)
@@ -214,8 +231,8 @@ export default async function ClientOverviewPage({
     reverse = false,
     tooltipMessage?: string
   ) => {
-    const value = latest?.[metric] ?? 0;
-    const prev = previous?.[metric] ?? 0;
+    const value = displayAudit?.[metric] ?? 0;
+    const prev = comparisonAudit?.[metric] ?? 0;
     const { delta, direction } = getTrend(value, prev);
 
     const realDirection = reverse
@@ -270,8 +287,8 @@ export default async function ClientOverviewPage({
   const { badge: trend4xx } = getTrendInfo('pages_4xx_response', true);
   const { badge: trend5xx } = getTrendInfo('pages_5xx_response', true);
 
-  const lastAuditAt = latest?.createdAt
-    ? new Date(latest.createdAt).toLocaleString()
+  const lastAuditAt = displayAudit?.createdAt
+    ? new Date(displayAudit.createdAt).toLocaleString()
     : 'N/A';
 
   const latestCrawlAt = latestCrawl?.createdAt
@@ -328,12 +345,29 @@ export default async function ClientOverviewPage({
         enabled={shouldListenForUpdates}
       />
 
-      {!latest ? (
+      {!displayAudit ? (
         <div className='flex min-h-[60vh] flex-1 flex-col items-center justify-center space-y-4'>
           <CrawlLoadingSpinner />
         </div>
       ) : (
         <div className='flex flex-1 flex-col gap-8'>
+          {/* Show alert if crawl was aborted */}
+          {crawlAbortedWithoutAudit && (
+            <Alert variant='destructive'>
+              <IconAlertCircle className='h-4 w-4' />
+              <AlertTitle>Crawl Failed</AlertTitle>
+              <AlertDescription>
+                The latest crawl was aborted and unable to complete audit.
+                Showing results from the previous successful audit instead.
+                {latestCrawlAt && (
+                  <span className='mt-1 block text-xs'>
+                    Failed crawl started: {latestCrawlAt}
+                  </span>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className='flex flex-wrap items-start justify-between gap-4'>
             <div className='space-y-2'>
               <Heading
@@ -362,7 +396,7 @@ export default async function ClientOverviewPage({
           <section>
             <div className='grid gap-4 md:grid-cols-5'>
               <div className='col-span-2 flex flex-col gap-3'>
-                <DoughnutGraph auditScore={latest?.score ?? 0} />
+                <DoughnutGraph auditScore={displayAudit?.score ?? 0} />
               </div>
               <div className='col-span-3'>
                 <AuditProgressChart />
@@ -466,7 +500,7 @@ export default async function ClientOverviewPage({
                     </p>
                     <div className='mt-1 flex items-baseline justify-between'>
                       <span className='text-3xl font-semibold tabular-nums'>
-                        {latest?.pages_200_response ?? 0}
+                        {displayAudit?.pages_200_response ?? 0}
                       </span>
                       <span className='text-xs'>{trend200 || '–'}</span>
                     </div>
@@ -477,7 +511,7 @@ export default async function ClientOverviewPage({
                     </p>
                     <div className='mt-1 flex items-baseline justify-between'>
                       <span className='text-3xl font-semibold tabular-nums'>
-                        {latest?.pages_3xx_response ?? 0}
+                        {displayAudit?.pages_3xx_response ?? 0}
                       </span>
                       <span className='text-xs'>{trend3xx || '–'}</span>
                     </div>
@@ -488,7 +522,7 @@ export default async function ClientOverviewPage({
                     </p>
                     <div className='mt-1 flex items-baseline justify-between'>
                       <span className='text-3xl font-semibold tabular-nums'>
-                        {latest?.pages_4xx_response ?? 0}
+                        {displayAudit?.pages_4xx_response ?? 0}
                       </span>
                       <span className='text-xs'>{trend4xx || '–'}</span>
                     </div>
@@ -499,7 +533,7 @@ export default async function ClientOverviewPage({
                     </p>
                     <div className='mt-1 flex items-baseline justify-between'>
                       <span className='text-3xl font-semibold tabular-nums'>
-                        {latest?.pages_5xx_response ?? 0}
+                        {displayAudit?.pages_5xx_response ?? 0}
                       </span>
                       <span className='text-xs'>{trend5xx || '–'}</span>
                     </div>
@@ -527,37 +561,37 @@ export default async function ClientOverviewPage({
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>301 Permanent</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_301_permanent ?? 0}
+                      {displayAudit?.pages_301_permanent ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>302 Temporary</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_302_temporary ?? 0}
+                      {displayAudit?.pages_302_temporary ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>303 See Other</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_303_see_other ?? 0}
+                      {displayAudit?.pages_303_see_other ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>307 Temporary</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_307_temporary ?? 0}
+                      {displayAudit?.pages_307_temporary ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>308 Permanent</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_308_permanent ?? 0}
+                      {displayAudit?.pages_308_permanent ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
                     <span className='text-muted-foreground'>Other 3xx</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_3xx_other ?? 0}
+                      {displayAudit?.pages_3xx_other ?? 0}
                     </span>
                   </div>
                 </CardContent>
@@ -575,19 +609,19 @@ export default async function ClientOverviewPage({
                       401 Unauthorized
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_401_unauthorized ?? 0}
+                      {displayAudit?.pages_401_unauthorized ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>403 Forbidden</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_403_forbidden ?? 0}
+                      {displayAudit?.pages_403_forbidden ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>404 Not Found</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_404_not_found ?? 0}
+                      {displayAudit?.pages_404_not_found ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
@@ -595,19 +629,19 @@ export default async function ClientOverviewPage({
                       405 Method Not Allowed
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_405_method_not_allowed ?? 0}
+                      {displayAudit?.pages_405_method_not_allowed ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>408 Timeout</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_408_timeout ?? 0}
+                      {displayAudit?.pages_408_timeout ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>410 Gone</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_410_gone ?? 0}
+                      {displayAudit?.pages_410_gone ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
@@ -615,13 +649,13 @@ export default async function ClientOverviewPage({
                       429 Rate Limited
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_429_rate_limited ?? 0}
+                      {displayAudit?.pages_429_rate_limited ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
                     <span className='text-muted-foreground'>Other 4xx</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_4xx_other ?? 0}
+                      {displayAudit?.pages_4xx_other ?? 0}
                     </span>
                   </div>
                 </CardContent>
@@ -639,7 +673,7 @@ export default async function ClientOverviewPage({
                       500 Internal Error
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_500_internal_error ?? 0}
+                      {displayAudit?.pages_500_internal_error ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
@@ -647,7 +681,7 @@ export default async function ClientOverviewPage({
                       502 Bad Gateway
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_502_bad_gateway ?? 0}
+                      {displayAudit?.pages_502_bad_gateway ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
@@ -655,19 +689,19 @@ export default async function ClientOverviewPage({
                       503 Unavailable
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_503_unavailable ?? 0}
+                      {displayAudit?.pages_503_unavailable ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between border-b pb-2'>
                     <span className='text-muted-foreground'>504 Timeout</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_504_timeout ?? 0}
+                      {displayAudit?.pages_504_timeout ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
                     <span className='text-muted-foreground'>Other 5xx</span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.pages_5xx_other ?? 0}
+                      {displayAudit?.pages_5xx_other ?? 0}
                     </span>
                   </div>
                 </CardContent>
@@ -685,7 +719,7 @@ export default async function ClientOverviewPage({
                 <CardHeader>
                   <CardDescription>Total Images</CardDescription>
                   <CardTitle className='text-3xl font-semibold tabular-nums'>
-                    {latest?.total_images ?? 0}
+                    {displayAudit?.total_images ?? 0}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className='text-muted-foreground text-sm'>
@@ -706,7 +740,7 @@ export default async function ClientOverviewPage({
                       Missing alt text
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.total_images_missing_alt ?? 0}
+                      {displayAudit?.total_images_missing_alt ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
@@ -714,7 +748,7 @@ export default async function ClientOverviewPage({
                       Empty alt text
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.total_images_empty_alt ?? 0}
+                      {displayAudit?.total_images_empty_alt ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
@@ -722,8 +756,8 @@ export default async function ClientOverviewPage({
                       Pages affected
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {(latest?.pages_with_images_missing_alt ?? 0) +
-                        (latest?.pages_with_images_empty_alt ?? 0)}
+                      {(displayAudit?.pages_with_images_missing_alt ?? 0) +
+                        (displayAudit?.pages_with_images_empty_alt ?? 0)}
                     </span>
                   </div>
                 </CardContent>
@@ -742,7 +776,7 @@ export default async function ClientOverviewPage({
                       Missing dimensions
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.total_images_missing_dimensions ?? 0}
+                      {displayAudit?.total_images_missing_dimensions ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
@@ -750,7 +784,7 @@ export default async function ClientOverviewPage({
                       Unoptimized format
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {latest?.total_images_unoptimized_format ?? 0}
+                      {displayAudit?.total_images_unoptimized_format ?? 0}
                     </span>
                   </div>
                   <div className='flex items-center justify-between'>
@@ -758,8 +792,10 @@ export default async function ClientOverviewPage({
                       Pages affected
                     </span>
                     <span className='font-medium tabular-nums'>
-                      {(latest?.pages_with_images_missing_dimensions ?? 0) +
-                        (latest?.pages_with_unoptimized_image_format ?? 0)}
+                      {(displayAudit?.pages_with_images_missing_dimensions ??
+                        0) +
+                        (displayAudit?.pages_with_unoptimized_image_format ??
+                          0)}
                     </span>
                   </div>
                 </CardContent>
