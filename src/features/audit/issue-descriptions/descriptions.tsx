@@ -15,8 +15,8 @@ export function DescriptionsTooShort() {
     <div>
       <p className='text-sm'>
         Descriptions that go under the standard length of 165 characters.
-        Anything under this number of characters will be truncated by search
-        engines and may result in a reduction of CTR.
+        Anything under this number of characters will not be taking advantage of
+        the full potential of search engines.
       </p>
     </div>
   );

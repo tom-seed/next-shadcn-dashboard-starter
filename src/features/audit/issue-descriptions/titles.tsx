@@ -15,8 +15,8 @@ export function TitlesTooShort() {
     <div>
       <p className='text-sm'>
         Titles that go under the standard length of 65 characters. Anything
-        under this number of characters will be truncated by search engines and
-        may result in a reduction of CTR.
+        under this number of characters will not be taking advantage of the full
+        potential of keywords.
       </p>
     </div>
   );

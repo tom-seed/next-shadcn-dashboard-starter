@@ -22,6 +22,7 @@ model Client {
   hreflangLinks       HreflangLink[]
   internalLinks       InternalLink[]
   urls                Urls[]
+  images              Image[]
 }
 
 model ClientMembership {
@@ -58,6 +59,7 @@ model Crawl {
   hreflangLinks HreflangLink[]
   internalLinks InternalLink[]
   urls          Urls[]
+  images        Image[]
 }
 
 model Urls {
@@ -66,7 +68,6 @@ model Urls {
   crawlId                    Int?
   url                        String
   status                     Int?
-  originalStatus             Int?
   redirectTarget             String?
   canonical                  String?
   canonicalStatus            Int?
@@ -85,11 +86,13 @@ model Urls {
   isPagination               Boolean        @default(false)
   paginationNext             String?
   paginationPrev             String?
+  originalStatus             Int?
   auditIssues                AuditIssue[]
   hreflangLinks              HreflangLink[] @relation("HreflangSource")
   hreflangTargets            HreflangLink[] @relation("HreflangTarget")
   sourceLinks                InternalLink[] @relation("SourceLinks")
   targetLinks                InternalLink[] @relation("TargetLinks")
+  images                     Image[]
   client                     Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   crawl                      Crawl?         @relation(fields: [crawlId], references: [id], onDelete: Cascade)
 
@@ -97,89 +100,90 @@ model Urls {
 }
 
 model Audit {
-  id                                 Int          @id @default(autoincrement())
-  crawlId                            Int          @unique
-  clientId                           Int
-  createdAt                          DateTime     @default(now())
-  pages_missing_title                Int          @default(0)
-  too_short_title                    Int          @default(0)
-  too_long_title                     Int          @default(0)
-  pages_missing_description          Int          @default(0)
-  too_short_description              Int          @default(0)
-  too_long_description               Int          @default(0)
-  pages_missing_h1                   Int          @default(0)
-  pages_with_multiple_h1s            Int          @default(0)
-  pages_with_duplicate_h1s           Int          @default(0)
-  pages_missing_h2                   Int          @default(0)
-  pages_with_multiple_h2s            Int          @default(0)
-  pages_with_duplicate_h2s           Int          @default(0)
-  pages_missing_h3                   Int          @default(0)
-  pages_with_multiple_h3s            Int          @default(0)
-  pages_with_duplicate_h3s           Int          @default(0)
-  pages_missing_h4                   Int          @default(0)
-  pages_with_multiple_h4s            Int          @default(0)
-  pages_with_duplicate_h4s           Int          @default(0)
-  pages_missing_h5                   Int          @default(0)
-  pages_with_multiple_h5s            Int          @default(0)
-  pages_with_duplicate_h5s           Int          @default(0)
-  pages_missing_h6                   Int          @default(0)
-  pages_with_multiple_h6s            Int          @default(0)
-  pages_with_duplicate_h6s           Int          @default(0)
-  pages_200_response                 Int          @default(0)
-  pages_3xx_response                 Int          @default(0)
-  pages_4xx_response                 Int          @default(0)
-  pages_5xx_response                 Int          @default(0)
-  score                              Int?
-  pages_canonicalised                Int          @default(0)
-  pages_missing_canonical            Int          @default(0)
-  pages_hreflang_broken_links        Int          @default(0)
-  pages_hreflang_missing_return_tag  Int          @default(0)
-  pages_hreflang_missing_self_ref    Int          @default(0)
-  pages_missing_hreflang_x_default   Int          @default(0)
-  pages_orphaned                     Int          @default(0)
-  pages_with_broken_internal_links   Int          @default(0)
-  pages_with_hreflang                Int          @default(0)
-  pages_with_redirect_links          Int          @default(0)
-  total_broken_internal_links        Int          @default(0)
-  total_hreflang_broken_links        Int          @default(0)
-  total_hreflang_links               Int          @default(0)
-  total_hreflang_missing_return_tags Int          @default(0)
-  total_orphaned_pages               Int          @default(0)
-  total_redirect_internal_links      Int          @default(0)
-  pages_301_permanent                Int          @default(0)
-  pages_302_temporary                Int          @default(0)
-  pages_303_see_other                Int          @default(0)
-  pages_307_temporary                Int          @default(0)
-  pages_308_permanent                Int          @default(0)
-  pages_3xx_other                    Int          @default(0)
-  pages_401_unauthorized             Int          @default(0)
-  pages_403_forbidden                Int          @default(0)
-  pages_404_not_found                Int          @default(0)
-  pages_405_method_not_allowed       Int          @default(0)
-  pages_408_timeout                  Int          @default(0)
-  pages_410_gone                     Int          @default(0)
-  pages_429_rate_limited             Int          @default(0)
-  pages_4xx_other                    Int          @default(0)
-  pages_500_internal_error           Int          @default(0)
-  pages_502_bad_gateway              Int          @default(0)
-  pages_503_unavailable              Int          @default(0)
-  pages_504_timeout                  Int          @default(0)
-  pages_5xx_other                    Int          @default(0)
-  
-  // Image Audits (Metadata Only - No Fetching)
-  pages_with_images_missing_alt        Int          @default(0)
+  id                                   Int          @id @default(autoincrement())
+  crawlId                              Int          @unique
+  clientId                             Int
+  createdAt                            DateTime     @default(now())
+  pages_missing_title                  Int          @default(0)
+  too_short_title                      Int          @default(0)
+  too_long_title                       Int          @default(0)
+  pages_missing_description            Int          @default(0)
+  too_short_description                Int          @default(0)
+  too_long_description                 Int          @default(0)
+  pages_missing_h1                     Int          @default(0)
+  pages_with_multiple_h1s              Int          @default(0)
+  pages_with_duplicate_h1s             Int          @default(0)
+  pages_missing_h2                     Int          @default(0)
+  pages_with_multiple_h2s              Int          @default(0)
+  pages_with_duplicate_h2s             Int          @default(0)
+  pages_missing_h3                     Int          @default(0)
+  pages_with_multiple_h3s              Int          @default(0)
+  pages_with_duplicate_h3s             Int          @default(0)
+  pages_missing_h4                     Int          @default(0)
+  pages_with_multiple_h4s              Int          @default(0)
+  pages_with_duplicate_h4s             Int          @default(0)
+  pages_missing_h5                     Int          @default(0)
+  pages_with_multiple_h5s              Int          @default(0)
+  pages_with_duplicate_h5s             Int          @default(0)
+  pages_missing_h6                     Int          @default(0)
+  pages_with_multiple_h6s              Int          @default(0)
+  pages_with_duplicate_h6s             Int          @default(0)
+  pages_200_response                   Int          @default(0)
+  pages_3xx_response                   Int          @default(0)
+  pages_4xx_response                   Int          @default(0)
+  pages_5xx_response                   Int          @default(0)
+  score                                Int?
+  pages_canonicalised                  Int          @default(0)
+  pages_missing_canonical              Int          @default(0)
+  canonical_points_to_redirect         Int          @default(0)
+  canonical_points_to_404              Int          @default(0)
+  canonical_points_to_4xx              Int          @default(0)
+  canonical_points_to_5xx              Int          @default(0)
+  pages_hreflang_broken_links          Int          @default(0)
+  pages_hreflang_missing_return_tag    Int          @default(0)
+  pages_hreflang_missing_self_ref      Int          @default(0)
+  pages_missing_hreflang_x_default     Int          @default(0)
+  pages_orphaned                       Int          @default(0)
+  pages_with_broken_internal_links     Int          @default(0)
+  pages_with_hreflang                  Int          @default(0)
+  pages_with_redirect_links            Int          @default(0)
+  total_broken_internal_links          Int          @default(0)
+  total_hreflang_broken_links          Int          @default(0)
+  total_hreflang_links                 Int          @default(0)
+  total_hreflang_missing_return_tags   Int          @default(0)
+  total_orphaned_pages                 Int          @default(0)
+  total_redirect_internal_links        Int          @default(0)
+  pages_301_permanent                  Int          @default(0)
+  pages_302_temporary                  Int          @default(0)
+  pages_303_see_other                  Int          @default(0)
+  pages_307_temporary                  Int          @default(0)
+  pages_308_permanent                  Int          @default(0)
+  pages_3xx_other                      Int          @default(0)
+  pages_401_unauthorized               Int          @default(0)
+  pages_403_forbidden                  Int          @default(0)
+  pages_404_not_found                  Int          @default(0)
+  pages_405_method_not_allowed         Int          @default(0)
+  pages_408_timeout                    Int          @default(0)
+  pages_410_gone                       Int          @default(0)
+  pages_429_rate_limited               Int          @default(0)
+  pages_4xx_other                      Int          @default(0)
+  pages_500_internal_error             Int          @default(0)
+  pages_502_bad_gateway                Int          @default(0)
+  pages_503_unavailable                Int          @default(0)
+  pages_504_timeout                    Int          @default(0)
+  pages_5xx_other                      Int          @default(0)
   pages_with_images_empty_alt          Int          @default(0)
+  pages_with_images_missing_alt        Int          @default(0)
   pages_with_images_missing_dimensions Int          @default(0)
   pages_with_unoptimized_image_format  Int          @default(0)
   total_images                         Int          @default(0)
-  total_images_missing_alt             Int          @default(0)
   total_images_empty_alt               Int          @default(0)
+  total_images_missing_alt             Int          @default(0)
   total_images_missing_dimensions      Int          @default(0)
   total_images_unoptimized_format      Int          @default(0)
-  
-  client                             Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  crawl                              Crawl        @relation(fields: [crawlId], references: [id], onDelete: Cascade)
-  issues                             AuditIssue[]
+  client                               Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawl                                Crawl        @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  issues                               AuditIssue[]
 }
 
 model AuditIssue {
@@ -239,7 +243,34 @@ model HreflangLink {
   @@unique([sourceId, hreflang, crawlId])
   @@index([clientId, crawlId])
   @@index([targetUrl])
-  @@index([hreflang])
+  @@index([crawlId, sourceId])
+}
+
+model Image {
+  id                Int      @id @default(autoincrement())
+  clientId          Int
+  crawlId           Int
+  urlId             Int      // The page where this image appears
+  src               String   // Image source URL
+  alt               String?  // Alt text (null if missing)
+  width             Int?     // Width in pixels
+  height            Int?     // Height in pixels  
+  format            String?  // e.g. 'jpg', 'png', 'webp'
+  isOptimizedFormat Boolean  @default(false) // Is webp/avif
+  hasDimensions     Boolean  @default(false) // Has width & height
+  hasAlt            Boolean  @default(false) // Has non-empty alt
+  createdAt         DateTime @default(now())
+  
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawl  Crawl  @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  url    Urls   @relation(fields: [urlId], references: [id], onDelete: Cascade)
+  
+  @@index([clientId])
+  @@index([crawlId])
+  @@index([urlId])
+  @@index([hasAlt])
+  @@index([hasDimensions])
+  @@index([isOptimizedFormat])
 }
 
 enum GlobalRole {
