@@ -32,6 +32,10 @@ export function OrgSwitcher({
   const [selectedClient, setSelectedClient] =
     React.useState<Client>(defaultClient);
 
+  React.useEffect(() => {
+    setSelectedClient(defaultClient);
+  }, [defaultClient]);
+
   const handleClientSwitch = (client: Client) => {
     setSelectedClient(client);
     onClientSwitch?.(client.id);

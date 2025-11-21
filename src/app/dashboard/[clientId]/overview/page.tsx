@@ -19,7 +19,10 @@ import {
   IconTrendingDown,
   IconAlertTriangle,
   IconCircleCheck,
-  IconArrowUpRight
+  IconArrowUpRight,
+  IconActivity,
+  IconFiles,
+  IconServer
 } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { getTrend } from '@/lib/helpers/getTrend';
@@ -393,6 +396,79 @@ export default async function ClientOverviewPage({
             </div>
           </div>
 
+          {/* Key Metrics Row */}
+          <section>
+            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+              <Card>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <CardTitle className='text-sm font-medium'>
+                    Health Score
+                  </CardTitle>
+                  <IconActivity className='text-muted-foreground h-4 w-4' />
+                </CardHeader>
+                <CardContent>
+                  <div className='text-2xl font-bold'>
+                    {displayAudit?.score ?? 0}
+                  </div>
+                  <p className='text-muted-foreground text-xs'>
+                    {trendScore} from last audit
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <CardTitle className='text-sm font-medium'>
+                    Total Pages
+                  </CardTitle>
+                  <IconFiles className='text-muted-foreground h-4 w-4' />
+                </CardHeader>
+                <CardContent>
+                  <div className='text-2xl font-bold'>
+                    {(displayAudit?.pages_200_response ?? 0) +
+                      (displayAudit?.pages_3xx_response ?? 0) +
+                      (displayAudit?.pages_4xx_response ?? 0) +
+                      (displayAudit?.pages_5xx_response ?? 0)}
+                  </div>
+                  <p className='text-muted-foreground text-xs'>Crawled URLs</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <CardTitle className='text-sm font-medium'>
+                    Critical Issues
+                  </CardTitle>
+                  <IconAlertTriangle className='h-4 w-4 text-red-500' />
+                </CardHeader>
+                <CardContent>
+                  <div className='text-2xl font-bold'>
+                    {severityTotals.Alert}
+                  </div>
+                  <p className='text-muted-foreground text-xs'>
+                    Requires immediate attention
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                  <CardTitle className='text-sm font-medium'>
+                    Crawl Status
+                  </CardTitle>
+                  <IconServer className='text-muted-foreground h-4 w-4' />
+                </CardHeader>
+                <CardContent>
+                  <div className='flex items-center gap-2'>
+                    <Badge variant='outline' className={crawlStatusBadgeClass}>
+                      {latestCrawlStateLabel}
+                    </Badge>
+                  </div>
+                  <p className='text-muted-foreground mt-2 text-xs'>
+                    {latestCrawlAt ?? 'No crawl data'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
           <section>
             <div className='grid gap-4 md:grid-cols-5'>
               <div className='col-span-2 flex flex-col gap-3'>
@@ -408,7 +484,7 @@ export default async function ClientOverviewPage({
             <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
               Snapshot
             </h2>
-            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+            <div className='grid gap-4 md:grid-cols-2'>
               <Card>
                 <CardHeader>
                   <CardDescription>Unresolved issues</CardDescription>
@@ -485,15 +561,24 @@ export default async function ClientOverviewPage({
                   </p>
                 </CardContent>
               </Card>
+            </div>
+          </section>
 
-              <Card>
+          {/* Status Codes Section - Grouped */}
+          <section>
+            <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
+              Status Codes
+            </h2>
+            <div className='grid gap-4 md:grid-cols-3'>
+              {/* Trends Card - Spans full width on mobile, 1 col on desktop */}
+              <Card className='md:col-span-3 lg:col-span-1'>
                 <CardHeader>
                   <CardDescription>Since last audit</CardDescription>
                   <CardTitle className='text-xl font-semibold'>
-                    Status Code Trends
+                    Status Trends
                   </CardTitle>
                 </CardHeader>
-                <CardContent className='grid gap-3 sm:grid-cols-2'>
+                <CardContent className='grid gap-3 sm:grid-cols-2 lg:grid-cols-1'>
                   <div className='bg-muted/40 rounded-md border p-3'>
                     <p className='text-muted-foreground text-xs tracking-wide uppercase'>
                       2xx success
@@ -540,172 +625,189 @@ export default async function ClientOverviewPage({
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </section>
 
-          {/* Detailed Status Code Breakdown */}
-          <section>
-            <h2 className='text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase'>
-              Detailed Status Codes
-            </h2>
-            <div className='grid gap-4 md:grid-cols-3'>
-              {/* 3xx Redirects */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className='text-lg'>3xx Redirects</CardTitle>
-                  <CardDescription>
-                    Redirect status code breakdown
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-2 text-sm'>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>301 Permanent</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_301_permanent ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>302 Temporary</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_302_temporary ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>303 See Other</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_303_see_other ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>307 Temporary</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_307_temporary ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>308 Permanent</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_308_permanent ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-muted-foreground'>Other 3xx</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_3xx_other ?? 0}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Detailed Breakdown - Spans 2 cols */}
+              <div className='grid gap-4 md:col-span-3 md:grid-cols-2 lg:col-span-2'>
+                {/* 3xx Redirects */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className='text-lg'>3xx Redirects</CardTitle>
+                    <CardDescription>
+                      Redirect status code breakdown
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-2 text-sm'>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        301 Permanent
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_301_permanent ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        302 Temporary
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_302_temporary ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        303 See Other
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_303_see_other ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        307 Temporary
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_307_temporary ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        308 Permanent
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_308_permanent ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-muted-foreground'>Other 3xx</span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_3xx_other ?? 0}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* 4xx Client Errors */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className='text-lg'>4xx Client Errors</CardTitle>
-                  <CardDescription>Client error breakdown</CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-2 text-sm'>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>
-                      401 Unauthorized
-                    </span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_401_unauthorized ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>403 Forbidden</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_403_forbidden ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>404 Not Found</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_404_not_found ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>
-                      405 Method Not Allowed
-                    </span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_405_method_not_allowed ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>408 Timeout</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_408_timeout ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>410 Gone</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_410_gone ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>
-                      429 Rate Limited
-                    </span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_429_rate_limited ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-muted-foreground'>Other 4xx</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_4xx_other ?? 0}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* 4xx Client Errors */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className='text-lg'>4xx Client Errors</CardTitle>
+                    <CardDescription>Client error breakdown</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-2 text-sm'>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        401 Unauthorized
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_401_unauthorized ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        403 Forbidden
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_403_forbidden ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        404 Not Found
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_404_not_found ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        405 Method Not Allowed
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_405_method_not_allowed ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>408 Timeout</span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_408_timeout ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>410 Gone</span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_410_gone ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between border-b pb-2'>
+                      <span className='text-muted-foreground'>
+                        429 Rate Limited
+                      </span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_429_rate_limited ?? 0}
+                      </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-muted-foreground'>Other 4xx</span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_4xx_other ?? 0}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* 5xx Server Errors */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className='text-lg'>5xx Server Errors</CardTitle>
-                  <CardDescription>Server error breakdown</CardDescription>
-                </CardHeader>
-                <CardContent className='space-y-2 text-sm'>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>
-                      500 Internal Error
-                    </span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_500_internal_error ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>
-                      502 Bad Gateway
-                    </span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_502_bad_gateway ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>
-                      503 Unavailable
-                    </span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_503_unavailable ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between border-b pb-2'>
-                    <span className='text-muted-foreground'>504 Timeout</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_504_timeout ?? 0}
-                    </span>
-                  </div>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-muted-foreground'>Other 5xx</span>
-                    <span className='font-medium tabular-nums'>
-                      {displayAudit?.pages_5xx_other ?? 0}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* 5xx Server Errors */}
+                <Card className='md:col-span-2'>
+                  <CardHeader>
+                    <CardTitle className='text-lg'>5xx Server Errors</CardTitle>
+                    <CardDescription>Server error breakdown</CardDescription>
+                  </CardHeader>
+                  <CardContent className='space-y-2 text-sm'>
+                    <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                      <div>
+                        <div className='flex items-center justify-between border-b pb-2'>
+                          <span className='text-muted-foreground'>
+                            500 Internal Error
+                          </span>
+                          <span className='font-medium tabular-nums'>
+                            {displayAudit?.pages_500_internal_error ?? 0}
+                          </span>
+                        </div>
+                        <div className='mt-2 flex items-center justify-between border-b pb-2'>
+                          <span className='text-muted-foreground'>
+                            502 Bad Gateway
+                          </span>
+                          <span className='font-medium tabular-nums'>
+                            {displayAudit?.pages_502_bad_gateway ?? 0}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className='flex items-center justify-between border-b pb-2'>
+                          <span className='text-muted-foreground'>
+                            503 Unavailable
+                          </span>
+                          <span className='font-medium tabular-nums'>
+                            {displayAudit?.pages_503_unavailable ?? 0}
+                          </span>
+                        </div>
+                        <div className='mt-2 flex items-center justify-between border-b pb-2'>
+                          <span className='text-muted-foreground'>
+                            504 Timeout
+                          </span>
+                          <span className='font-medium tabular-nums'>
+                            {displayAudit?.pages_504_timeout ?? 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className='mt-2 flex items-center justify-between'>
+                      <span className='text-muted-foreground'>Other 5xx</span>
+                      <span className='font-medium tabular-nums'>
+                        {displayAudit?.pages_5xx_other ?? 0}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </section>
 

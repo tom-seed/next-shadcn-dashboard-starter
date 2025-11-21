@@ -105,11 +105,7 @@ export default async function OverViewPage() {
           <Separator />
           <div className='divide-border divide-y'>
             {data.map((client) => (
-              <ClientOverviewRow
-                key={client.id}
-                client={client}
-                showDelete={hasAdminAccess}
-              />
+              <ClientOverviewRow key={client.id} client={client} />
             ))}
           </div>
         </Card>
