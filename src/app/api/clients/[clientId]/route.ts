@@ -1,6 +1,6 @@
 // FILE: src/app/api/clients/[clientId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import { PrismaClient } from '@prisma/client';
 import { withAccelerate } from '@prisma/extension-accelerate';
 import { ensureClientAccess } from '@/lib/auth/memberships';
@@ -153,6 +153,29 @@ export async function DELETE(
   }
 
   try {
+    const clerk = await clerkClient();
+
+    // Look up related Clerk organization so we can clean it up as well
+    const client = await prisma.client.findUnique({
+      where: { id },
+      select: { clerkOrganizationId: true }
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    if (client.clerkOrganizationId) {
+      try {
+        await clerk.organizations.deleteOrganization(
+          client.clerkOrganizationId
+        );
+      } catch (clerkError) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to delete Clerk organization:', clerkError);
+      }
+    }
+
     // Delete the client - Prisma will handle cascade deletes based on schema
     await prisma.client.delete({
       where: { id }
