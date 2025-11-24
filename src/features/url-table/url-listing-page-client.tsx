@@ -11,6 +11,7 @@ import {
   createParser
 } from 'nuqs';
 import { ColumnFiltersState, SortingState } from '@tanstack/react-table';
+import { toast } from 'sonner';
 
 // ✅ Custom parser using `createParser` to enable `withDefault`
 const parseSortParam = createParser<string[]>({
@@ -198,6 +199,9 @@ export default function UrlListingPageClient({
 
       // eslint-disable-next-line no-console
       console.error('Failed to fetch URL data', error);
+      toast.error('Failed to load URLs', {
+        description: 'Please try again later.'
+      });
     } finally {
       if (requestId === activeRequestRef.current) {
         setIsFetching(false);

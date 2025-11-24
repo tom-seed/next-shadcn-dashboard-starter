@@ -3,15 +3,17 @@ import { isGlobalAdmin } from '@/lib/auth/global-role';
 
 export async function getClientsOverviewForUser(clerkUserId: string) {
   const globalAdmin = await isGlobalAdmin(clerkUserId);
+  const isDev = process.env.NODE_ENV === 'development';
 
   return prisma.client.findMany({
-    where: globalAdmin
-      ? {}
-      : {
-          memberships: {
-            some: { clerkUserId }
-          }
-        },
+    where:
+      globalAdmin || isDev
+        ? {}
+        : {
+            memberships: {
+              some: { clerkUserId }
+            }
+          },
     select: {
       id: true,
       name: true,

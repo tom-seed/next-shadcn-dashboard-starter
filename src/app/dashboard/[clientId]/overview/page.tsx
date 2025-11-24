@@ -372,20 +372,22 @@ export default async function ClientOverviewPage({
           )}
 
           <div className='flex flex-wrap items-start justify-between gap-4'>
-            <div className='space-y-2'>
+            <div className='space-y-1'>
               <Heading
                 title={client?.name ?? 'Client overview'}
                 description={client?.url ?? 'Website URL not set'}
               />
-              <p className='text-muted-foreground text-sm'>
-                Last audit: {lastAuditAt}
-              </p>
-              {latestCrawl?.state && latestCrawlAt && (
-                <p className='text-muted-foreground text-xs'>
-                  Latest crawl {latestCrawlStateLabel.toLowerCase()} ·{' '}
-                  {latestCrawlAt}
-                </p>
-              )}
+              <div className='text-muted-foreground flex items-center gap-2 text-sm'>
+                <span>Last audit: {lastAuditAt}</span>
+                {latestCrawl?.state === 'STARTED' && (
+                  <>
+                    <span>•</span>
+                    <span className='text-blue-600 dark:text-blue-400'>
+                      Crawl in progress...
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
             <div className='flex flex-wrap items-center gap-2'>
               {isAgencyUser && (
@@ -398,23 +400,7 @@ export default async function ClientOverviewPage({
 
           {/* Key Metrics Row */}
           <section>
-            <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-              <Card>
-                <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                  <CardTitle className='text-sm font-medium'>
-                    Health Score
-                  </CardTitle>
-                  <IconActivity className='text-muted-foreground h-4 w-4' />
-                </CardHeader>
-                <CardContent>
-                  <div className='text-2xl font-bold'>
-                    {displayAudit?.score ?? 0}
-                  </div>
-                  <p className='text-muted-foreground text-xs'>
-                    {trendScore} from last audit
-                  </p>
-                </CardContent>
-              </Card>
+            <div className='grid gap-4 md:grid-cols-3'>
               <Card>
                 <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
                   <CardTitle className='text-sm font-medium'>

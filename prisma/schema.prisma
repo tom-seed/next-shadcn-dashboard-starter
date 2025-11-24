@@ -1,10 +1,14 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_DATABASE_URL")
+  url      = env("PRISMA_DATABASE_URL")
+  directUrl = env("POSTGRES_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  extensions        = [vector]
 }
 
 model Client {
@@ -23,6 +27,8 @@ model Client {
   internalLinks       InternalLink[]
   urls                Urls[]
   images              Image[]
+  invites             ClientInvite[]
+  tasks              Task[]
 }
 
 model ClientMembership {
@@ -92,8 +98,11 @@ model Urls {
   hreflangTargets            HreflangLink[] @relation("HreflangTarget")
   sourceLinks                InternalLink[] @relation("SourceLinks")
   targetLinks                InternalLink[] @relation("TargetLinks")
+
   images                     Image[]
+  pageEmbedding              PageEmbedding?
   client                     Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tasks                     Task[]
   crawl                      Crawl?         @relation(fields: [crawlId], references: [id], onDelete: Cascade)
 
   @@unique([crawlId, url])
@@ -186,20 +195,92 @@ model Audit {
   issues                               AuditIssue[]
 }
 
+
+
+model PageEmbedding {
+  id            Int      @id @default(autoincrement())
+  urlId         Int      @unique
+  // Requires "vector" extension in Postgres
+  contentVector Unsupported("vector(1536)")? 
+  urlVector     Unsupported("vector(1536)")? 
+  contentHash   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  url           Urls     @relation(fields: [urlId], references: [id], onDelete: Cascade)
+}
+
 model AuditIssue {
   id        Int      @id @default(autoincrement())
   clientId  Int
   auditId   Int
   urlId     Int
   issueKey  String
+  metadata  Json?
+  status    IssueStatus @default(OPEN)
+  priority  IssuePriority @default(MEDIUM)
+  fixedAt   DateTime?
+  ignoredAt DateTime?
   createdAt DateTime @default(now())
   audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   url       Urls     @relation(fields: [urlId], references: [id], onDelete: Cascade)
+  tasks    Task[]
 
   @@index([clientId])
   @@index([auditId])
   @@index([issueKey])
+  @@index([status])
+  @@index([priority])
+}
+
+// New Task model
+model Task {
+  id                 Int      @id @default(autoincrement())
+  clientId           Int
+  urlId              Int?    // optional link to a URL
+  auditIssueId       Int?    // optional link to an audit issue
+  title              String
+  description        String?
+  status             IssueStatus @default(OPEN)
+  priority           IssuePriority @default(MEDIUM)
+  assigneeClerkUserId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  client             Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  url                Urls?    @relation(fields: [urlId], references: [id], onDelete: SetNull)
+  auditIssue         AuditIssue? @relation(fields: [auditIssueId], references: [id], onDelete: SetNull)
+  comments           Comment[]
+
+  @@index([clientId])
+  @@index([urlId])
+  @@index([auditIssueId])
+}
+
+// New Comment model
+model Comment {
+  id                 Int      @id @default(autoincrement())
+  taskId             Int
+  authorClerkUserId  String
+  content            String
+  createdAt          DateTime @default(now())
+  task               Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  FIXED
+  IGNORED
+}
+
+enum IssuePriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
 }
 
 model InternalLink {
@@ -271,6 +352,24 @@ model Image {
   @@index([hasAlt])
   @@index([hasDimensions])
   @@index([isOptimizedFormat])
+}
+
+
+
+model ClientInvite {
+  id        Int        @id @default(autoincrement())
+  email     String
+  token     String     @unique // Clerk Invitation ID
+  clientId  Int
+  role      ClientRole @default(CLIENT_MEMBER)
+  createdAt DateTime   @default(now())
+  expiresAt DateTime
+  inviterId String     // Clerk User ID
+
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([token])
 }
 
 enum GlobalRole {

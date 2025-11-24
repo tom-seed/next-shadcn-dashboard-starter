@@ -1,6 +1,7 @@
 // FILE: src/app/api/clients/[clientId]/urls/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 import { Prisma } from '@prisma/client';
 import { auth } from '@clerk/nextjs/server';
 import { ensureClientAccess } from '@/lib/auth/memberships';
@@ -69,24 +70,29 @@ export async function GET(
   let orderBy: Prisma.UrlsOrderByWithRelationInput[] = [];
 
   const rawSorts = searchParams.getAll('sort');
-  try {
-    const orderByParsed = rawSorts.flatMap((entry) => {
-      try {
-        const parsed = JSON.parse(entry);
-        if (Array.isArray(parsed)) {
-          return parsed.flatMap(({ id, desc }) => {
-            if (ALLOWED_SORT_FIELDS.includes(id) && typeof desc === 'boolean') {
-              return [{ [id]: desc ? 'desc' : 'asc' }];
-            }
-            return [];
-          });
-        }
-      } catch (e) {}
-      return [];
-    });
+  orderBy = rawSorts.flatMap((entry) => {
+    // Handle "field:direction" format (e.g., "status:desc")
+    if (typeof entry === 'string' && entry.includes(':')) {
+      const [field, direction] = entry.split(':');
+      if (ALLOWED_SORT_FIELDS.includes(field as any)) {
+        return { [field]: direction === 'desc' ? 'desc' : 'asc' };
+      }
+    }
 
-    orderBy = orderByParsed;
-  } catch (err) {}
+    // Handle legacy JSON format
+    try {
+      const parsed = JSON.parse(entry);
+      if (Array.isArray(parsed)) {
+        return parsed.flatMap(({ id, desc }) => {
+          if (ALLOWED_SORT_FIELDS.includes(id) && typeof desc === 'boolean') {
+            return [{ [id]: desc ? 'desc' : 'asc' }];
+          }
+          return [];
+        });
+      }
+    } catch (e) {}
+    return [];
+  });
 
   try {
     const filters: any[] = [];
@@ -158,15 +164,33 @@ export async function GET(
       ...(filters.length > 0 ? { AND: filters } : {})
     };
 
-    const [urls, totalCount] = await Promise.all([
-      prisma.urls.findMany({
-        where: whereClause,
-        orderBy: orderBy.length > 0 ? orderBy : [{ createdAt: 'desc' }],
-        skip,
-        take: perPage
-      }),
-      prisma.urls.count({ where: whereClause })
-    ]);
+    const getCachedData = unstable_cache(
+      async () => {
+        return Promise.all([
+          prisma.urls.findMany({
+            where: whereClause,
+            orderBy: orderBy.length > 0 ? orderBy : [{ createdAt: 'desc' }],
+            skip,
+            take: perPage
+          }),
+          prisma.urls.count({ where: whereClause })
+        ]);
+      },
+      [
+        `urls-${id}`,
+        `crawl-${crawlId}`,
+        JSON.stringify(whereClause),
+        JSON.stringify(orderBy),
+        String(skip),
+        String(perPage)
+      ],
+      {
+        revalidate: 604800, // 1 week
+        tags: [`client-${id}-urls`]
+      }
+    );
+
+    const [urls, totalCount] = await getCachedData();
 
     return NextResponse.json({
       urls,

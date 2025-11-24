@@ -1,0 +1,56 @@
+Recommended Schema Changes
+Here are the schema changes required for both the Client Refactor (Invitations) and Content Similarity (Embeddings) features.
+
+IMPORTANT
+
+Prerequisites:
+
+Enable the vector extension in your Postgres database:
+CREATE EXTENSION IF NOT EXISTS vector;
+Ensure your Prisma version supports PostgreSQL extensions and the vector type.
+1. Content Similarity & Smart Redirects
+PageEmbedding Model (New)
+Stores OpenAI embeddings for page content and URL strings.
+
+model PageEmbedding {
+  id            Int      @id @default(autoincrement())
+  urlId         Int      @unique
+  // Requires "vector" extension in Postgres
+  contentVector Unsupported("vector(1536)")? 
+  urlVector     Unsupported("vector(1536)")? 
+  contentHash   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  url           Urls     @relation(fields: [urlId], references: [id], onDelete: Cascade)
+}
+AuditIssue Model (Update)
+Add a JSON field to store metadata about issues (e.g., "Suggested Redirect: /foo").
+
+model AuditIssue {
+  // ... existing fields ...
+  metadata  Json?
+}
+2. Client Invitations (Prisma-First Auth)
+Invitation Model (New)
+Manages invites to Clients without relying on Clerk Organizations.
+
+model Invitation {
+  id        Int      @id @default(autoincrement())
+  email     String
+  clientId  Int
+  token     String   @unique
+  role      ClientRole @default(CLIENT_MEMBER)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  @@index([email])
+  @@index([token])
+}
+3. Summary of Changes
+Run CREATE EXTENSION IF NOT EXISTS vector; in your DB.
+Add PageEmbedding and Invitation models to 
+schema.prisma
+.
+Add metadata field to AuditIssue.
+Run npx prisma migrate dev (or your equivalent migration command) in your Next.js repo.

@@ -60,7 +60,7 @@ export function InviteUserDialog({ clientId, trigger }: InviteUserDialogProps) {
   const onSubmit = (values: FormValues) => {
     startTransition(async () => {
       try {
-        await Promise.all(
+        const result = await Promise.all(
           values.emails.map((email) =>
             inviteUserAction({
               clientId,
@@ -72,14 +72,16 @@ export function InviteUserDialog({ clientId, trigger }: InviteUserDialogProps) {
             })
           )
         );
-        toast.success('Invites sent', {
-          description:
-            values.emails.length === 1
-              ? `${values.emails[0]} will receive a Clerk organization invite.`
-              : `${values.emails.length} collaborators will receive Clerk invites.`
-        });
-        form.reset({ emails: [], role: 'CLIENT_VIEWER' });
-        setOpen(false);
+
+        const successCount = result.filter((r) => r.ok).length;
+
+        if (successCount > 0) {
+          toast.success('Invites processed', {
+            description: `${successCount} invite(s) sent successfully.`
+          });
+          form.reset({ emails: [], role: 'CLIENT_VIEWER' });
+          setOpen(false);
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Failed to send invite';

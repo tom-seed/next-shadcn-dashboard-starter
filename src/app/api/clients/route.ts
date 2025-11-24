@@ -27,16 +27,63 @@ export async function GET() {
   }
 
   try {
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (isDev) {
+      const allClients = await prisma.client.findMany({
+        orderBy: { name: 'asc' }
+      });
+      const clients = allClients.map((client) => ({
+        id: client.id,
+        name: client.name,
+        role: ClientRole.INTERNAL_ADMIN,
+        clerkOrganizationId: client.clerkOrganizationId
+      }));
+      return NextResponse.json(clients);
+    }
+
+    const { orgId } = await auth();
     const memberships = await getClientMembershipsForUser(userId);
 
-    const clients = memberships
-      .map((membership) => ({
-        id: membership.client.id,
-        name: membership.client.name,
-        role: membership.role,
-        clerkOrganizationId: membership.client.clerkOrganizationId
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    // Fetch clients where the user is a member OR the client belongs to the user's active Agency Org
+    const agencyClients = orgId
+      ? await prisma.client.findMany({
+          where: { clerkOrganizationId: orgId },
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            clerkOrganizationId: true
+          }
+        })
+      : [];
+
+    // Combine and deduplicate
+    const clientMap = new Map();
+
+    memberships.forEach((m) => {
+      clientMap.set(m.client.id, {
+        id: m.client.id,
+        name: m.client.name,
+        role: m.role,
+        clerkOrganizationId: m.client.clerkOrganizationId
+      });
+    });
+
+    agencyClients.forEach((c) => {
+      if (!clientMap.has(c.id)) {
+        clientMap.set(c.id, {
+          id: c.id,
+          name: c.name,
+          role: ClientRole.AGENCY_ADMIN, // Default role for agency visibility
+          clerkOrganizationId: c.clerkOrganizationId
+        });
+      }
+    });
+
+    const clients = Array.from(clientMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
 
     return NextResponse.json(clients);
   } catch (err) {
@@ -83,31 +130,18 @@ export async function POST(req: NextRequest) {
     const baseSlug = slugify(name);
     const slug = ensureUniqueSlug(baseSlug);
 
-    const clerk = await clerkClient();
+    // DEPRECATED: We no longer create Clerk Organizations for each client.
+    // The client is now just a record in our DB, and we manage access via ClientMembership.
 
-    const organization = await clerk.organizations.createOrganization({
-      name,
-      slug,
-      createdBy: userId
-    });
-
-    // Ensure the creating user is an admin of the new organization.
-    try {
-      await clerk.organizations.createOrganizationMembership({
-        organizationId: organization.id,
-        userId,
-        role: 'admin'
-      });
-    } catch (membershipError) {
-      // Ignore if membership already exists (Clerk auto-assigns admin on create).
-    }
+    // NEW: If the user is in an Agency Org context, link the client to that Org.
+    const { orgId } = await auth();
 
     const client = await prisma.client.create({
       data: {
         name,
         url,
         cron,
-        clerkOrganizationId: organization.id,
+        clerkOrganizationId: orgId || null, // Link to Agency Org if present
         memberships: {
           create: {
             clerkUserId: userId,
@@ -124,7 +158,7 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ client, organization });
+    return NextResponse.json({ client });
   } catch (error: any) {
     // eslint-disable-next-line no-console
     console.error('Failed to create client', error);

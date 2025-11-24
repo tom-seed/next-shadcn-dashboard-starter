@@ -95,6 +95,12 @@ export default function AppSidebar() {
         items: []
       },
       {
+        title: 'Tasks',
+        url: `${base}/tasks`,
+        icon: 'check',
+        items: []
+      },
+      {
         title: 'Audits',
         url: `${base}/audits`,
         icon: 'devicesCheck',

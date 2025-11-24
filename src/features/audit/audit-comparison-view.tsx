@@ -122,6 +122,73 @@ export default function AuditComparisonView({ clientId }: Props) {
           />
         </div>
 
+        {/* Quick Stats Section */}
+        <div className='grid gap-4 md:grid-cols-4'>
+          <div className='bg-card text-card-foreground rounded-xl border shadow'>
+            <div className='flex flex-row items-center justify-between space-y-0 p-6 pb-2'>
+              <h3 className='text-sm font-medium tracking-tight'>
+                Health Score
+              </h3>
+            </div>
+            <div className='p-6 pt-0'>
+              <div className='text-2xl font-bold'>{latest?.score ?? 0}</div>
+              <p className='text-muted-foreground text-xs'>
+                {latest?.score && previous?.score
+                  ? `${latest.score - previous.score > 0 ? '+' : ''}${latest.score - previous.score} from last audit`
+                  : 'No change'}
+              </p>
+            </div>
+          </div>
+          <div className='bg-card text-card-foreground rounded-xl border shadow'>
+            <div className='flex flex-row items-center justify-between space-y-0 p-6 pb-2'>
+              <h3 className='text-sm font-medium tracking-tight'>
+                Total Pages
+              </h3>
+            </div>
+            <div className='p-6 pt-0'>
+              <div className='text-2xl font-bold'>
+                {(latest?.pages_200_response ?? 0) +
+                  (latest?.pages_3xx_response ?? 0) +
+                  (latest?.pages_4xx_response ?? 0) +
+                  (latest?.pages_5xx_response ?? 0)}
+              </div>
+              <p className='text-muted-foreground text-xs'>Crawled URLs</p>
+            </div>
+          </div>
+          <div className='bg-card text-card-foreground rounded-xl border shadow'>
+            <div className='flex flex-row items-center justify-between space-y-0 p-6 pb-2'>
+              <h3 className='text-sm font-medium tracking-tight'>
+                Critical Issues
+              </h3>
+            </div>
+            <div className='p-6 pt-0'>
+              <div className='text-2xl font-bold'>
+                {(latest?.pages_4xx_response ?? 0) +
+                  (latest?.pages_5xx_response ?? 0) +
+                  (latest?.pages_missing_title ?? 0) +
+                  (latest?.pages_missing_description ?? 0) +
+                  (latest?.pages_missing_h1 ?? 0)}
+              </div>
+              <p className='text-muted-foreground text-xs'>
+                Requires attention
+              </p>
+            </div>
+          </div>
+          <div className='bg-card text-card-foreground rounded-xl border shadow'>
+            <div className='flex flex-row items-center justify-between space-y-0 p-6 pb-2'>
+              <h3 className='text-sm font-medium tracking-tight'>Warnings</h3>
+            </div>
+            <div className='p-6 pt-0'>
+              <div className='text-2xl font-bold'>
+                {(latest?.pages_3xx_response ?? 0) +
+                  (latest?.pages_with_duplicate_h1s ?? 0) +
+                  (latest?.pages_with_multiple_h1s ?? 0)}
+              </div>
+              <p className='text-muted-foreground text-xs'>To improve</p>
+            </div>
+          </div>
+        </div>
+
         <Accordion type='multiple' className=''>
           {/* Metadata Section */}
           {renderSection('Metadata', [
@@ -157,27 +224,8 @@ export default function AuditComparisonView({ clientId }: Props) {
             )
           ])}
 
-          {/* Status Codes Section */}
-          {renderSection('Status Codes Overview', [
-            renderRow(
-              '3xx Redirects (Total)',
-              'pages_3xx_response',
-              `/dashboard/${clientId}/audits/issues/pages-3xx-response`
-            ),
-            renderRow(
-              '4xx Client Errors (Total)',
-              'pages_4xx_response',
-              `/dashboard/${clientId}/audits/issues/pages-4xx-response`
-            ),
-            renderRow(
-              '5xx Server Errors (Total)',
-              'pages_5xx_response',
-              `/dashboard/${clientId}/audits/issues/pages-5xx-response`
-            )
-          ])}
-
           {/* 3xx Redirects Breakdown */}
-          {renderSection('3xx Redirects - Detailed', [
+          {renderSection('3xx Redirects', [
             renderRow(
               '301 Permanent Redirect',
               'pages_301_permanent',
@@ -211,7 +259,7 @@ export default function AuditComparisonView({ clientId }: Props) {
           ])}
 
           {/* 4xx Client Errors Breakdown */}
-          {renderSection('4xx Client Errors - Detailed', [
+          {renderSection('4xx Client Errors', [
             renderRow(
               '401 Unauthorized',
               'pages_401_unauthorized',
@@ -255,7 +303,7 @@ export default function AuditComparisonView({ clientId }: Props) {
           ])}
 
           {/* 5xx Server Errors Breakdown */}
-          {renderSection('5xx Server Errors - Detailed', [
+          {renderSection('5xx Server Errors', [
             renderRow(
               '500 Internal Server Error',
               'pages_500_internal_error',
@@ -337,6 +385,26 @@ export default function AuditComparisonView({ clientId }: Props) {
               'Canonicalised Pages',
               'pages_canonicalised',
               `/dashboard/${clientId}/audits/issues/pages-canonicalised`
+            ),
+            renderRow(
+              'Canonical Points To Redirect',
+              'canonical_points_to_redirect',
+              `/dashboard/${clientId}/audits/issues/canonical-points-to-redirect`
+            ),
+            renderRow(
+              'Canonical Points To 404',
+              'canonical_points_to_404',
+              `/dashboard/${clientId}/audits/issues/canonical-points-to-404`
+            ),
+            renderRow(
+              'Canonical Points To 4xx',
+              'canonical_points_to_4xx',
+              `/dashboard/${clientId}/audits/issues/canonical-points-to-4xx`
+            ),
+            renderRow(
+              'Canonical Points To 5xx',
+              'canonical_points_to_5xx',
+              `/dashboard/${clientId}/audits/issues/canonical-points-to-5xx`
             )
           ])}
 

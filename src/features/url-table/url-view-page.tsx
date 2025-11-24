@@ -1,19 +1,25 @@
 import { getUrlById } from '@/lib/api/urls';
 import { notFound } from 'next/navigation';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@/components/ui/tooltip';
 import { Heading } from '@/components/ui/heading';
-import { IconAlertTriangle, IconLink } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconLink,
+  IconCheck,
+  IconInfoCircle
+} from '@tabler/icons-react';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
 import PageContainer from '@/components/layout/page-container';
-import { Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TaskCreateDialog } from '@/features/tasks/task-create-dialog';
 
 interface UrlViewPageProps {
   clientId: string;
@@ -48,16 +54,23 @@ const issueMap = (key: string, issue: string) => {
 
   const iconClass =
     severity === 'Alert'
-      ? 'text-white'
+      ? 'text-red-500'
       : severity === 'Warning'
-        ? 'text-yellow-500'
-        : 'text-white';
+        ? 'text-orange-500'
+        : 'text-blue-500';
+
+  const Icon =
+    severity === 'Alert'
+      ? IconAlertTriangle
+      : severity === 'Warning'
+        ? IconInfoCircle
+        : IconCheck;
 
   return (
-    <span className='flex items-center gap-1'>
-      <IconAlertTriangle className={`h-4 w-4 ${iconClass}`} />
-      {cleaned}
-    </span>
+    <div className='flex items-center gap-2 rounded-md border p-2 text-sm'>
+      <Icon className={`h-4 w-4 ${iconClass}`} />
+      <span>{cleaned}</span>
+    </div>
   );
 };
 
@@ -143,284 +156,289 @@ export default async function UrlViewPage({
             </div>
           </div>
         </div>
-        <Separator />
+        <TaskCreateDialog
+          clientId={parseInt(clientId)}
+          urlId={parseInt(urlId)}
+          defaultTitle={`Fix issue on ${ellipsisUrl(fullUrl)}`}
+        />
+      </div>
+      <Separator />
 
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-3'>
-          <div className='col-span-2'>
-            <div className='bg-card text-card-foreground flex h-full flex-col rounded-lg border shadow-sm'>
-              <div className='border-b p-4 pb-2'>
-                <span className='text-base font-semibold'>Metadata</span>
-              </div>
-              <div className='space-y-2 p-4'>
-                <div>
-                  <span className='text-sm font-medium'>Meta Title:</span>
-                  <div className='text-muted-foreground text-sm'>
+      <div className='grid grid-cols-1 gap-4 lg:grid-cols-3'>
+        {/* Left Column: Content & Metadata */}
+        <div className='space-y-4 lg:col-span-2'>
+          <Card>
+            <CardHeader>
+              <CardTitle>Content Overview</CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-6'>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-1'>
+                  <span className='text-muted-foreground text-sm font-medium'>
+                    Meta Title
+                  </span>
+                  <div className='text-sm font-medium break-words'>
                     {url.metaTitle || 'N/A'}
                   </div>
                 </div>
-                <div>
-                  <span className='text-sm font-medium'>Meta Description:</span>
-                  <div className='text-muted-foreground text-sm'>
-                    {url.metaDescription || 'N/A'}
-                  </div>
-                </div>
-                <div>
-                  <span className='text-sm font-medium'>Canonical:</span>
-                  <div className='text-muted-foreground max-w-[70vw] truncate text-sm md:max-w-[50vw] xl:max-w-[40vw]'>
+                <div className='space-y-1'>
+                  <span className='text-muted-foreground text-sm font-medium'>
+                    Canonical
+                  </span>
+                  <div className='text-sm font-medium break-all'>
                     {url.canonical || 'N/A'}
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className='col-span-1'>
-            <div className='bg-card text-card-foreground flex h-full flex-col rounded-lg border shadow-sm'>
-              <div className='border-b p-4 pb-2'>
-                <span className='text-base font-semibold'>Headings</span>
+              <div className='space-y-1'>
+                <span className='text-muted-foreground text-sm font-medium'>
+                  Meta Description
+                </span>
+                <div className='text-muted-foreground text-sm'>
+                  {url.metaDescription || 'N/A'}
+                </div>
               </div>
-              <CardContent className='space-y-2 p-4'>
+
+              <Separator />
+
+              <div className='grid gap-4 md:grid-cols-2'>
                 <div>
-                  <span className='text-sm font-medium'>H1 Tags</span>
+                  <span className='mb-2 block text-sm font-medium'>
+                    H1 Tags
+                  </span>
                   {normalizeHeadings(url.h1).length ? (
-                    <ul className='mt-2 space-y-2'>
+                    <ul className='space-y-2'>
                       {normalizeHeadings(url.h1).map((heading, idx) => (
                         <li key={`${heading}-${idx}`} className='text-sm'>
-                          <Badge className='bg-blue-100 break-words whitespace-normal text-blue-800'>
+                          <Badge
+                            variant='secondary'
+                            className='break-words whitespace-normal'
+                          >
                             {heading}
                           </Badge>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <div className='text-muted-foreground mt-2 text-sm'>
+                    <div className='text-muted-foreground text-sm'>
                       No H1 Tags Found
                     </div>
                   )}
                 </div>
                 <div>
-                  <span className='text-sm font-medium'>H2 Tags</span>
+                  <span className='mb-2 block text-sm font-medium'>
+                    H2 Tags
+                  </span>
                   {normalizeHeadings(url.h2).length ? (
-                    <ul className='mt-2 space-y-2'>
+                    <ul className='space-y-2'>
                       {normalizeHeadings(url.h2).map((heading, idx) => (
                         <li key={`${heading}-${idx}`} className='text-sm'>
-                          <Badge className='bg-indigo-100 break-words whitespace-normal text-indigo-800'>
+                          <Badge
+                            variant='outline'
+                            className='break-words whitespace-normal'
+                          >
                             {heading}
                           </Badge>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <div className='text-muted-foreground mt-2 text-sm'>
+                    <div className='text-muted-foreground text-sm'>
                       No H2 Tags Found
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </div>
-          </div>
-
-          <Card className='col-span-1'>
-            <CardHeader>
-              <CardTitle>Alerts ({alerts.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {alerts.length ? (
-                <div className='flex flex-wrap gap-2'>
-                  {alerts.map((issue, idx) => (
-                    <Badge key={idx} className='bg-red-500 text-white'>
-                      {issueMap(issue.issueKey, issue.issueKey) ??
-                        issue.issueKey}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <span className='text-muted-foreground text-sm'>
-                  No alerts detected
-                </span>
-              )}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className='col-span-1'>
+          <Card>
             <CardHeader>
-              <CardTitle>Warnings ({warnings.length})</CardTitle>
+              <CardTitle>Links</CardTitle>
+              <CardDescription>Internal linking structure</CardDescription>
             </CardHeader>
             <CardContent>
-              {warnings.length ? (
-                <div className='flex flex-wrap gap-2'>
-                  {warnings.map((issue, idx) => (
-                    <Badge key={idx} className='bg-orange-500 text-white'>
-                      {issueMap(issue.issueKey, issue.issueKey) ??
-                        issue.issueKey}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <span className='text-muted-foreground text-sm'>
-                  No warnings detected
-                </span>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className='col-span-1'>
-            <CardHeader>
-              <CardTitle>Opportunities ({opportunities.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {opportunities.length ? (
-                <div className='flex flex-wrap gap-2'>
-                  {opportunities.map((issue, idx) => (
-                    <Badge key={idx} className='bg-blue-500 text-white'>
-                      {issueMap(issue.issueKey, issue.issueKey) ??
-                        issue.issueKey}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <span className='text-muted-foreground text-sm'>
-                  No opportunities detected
-                </span>
-              )}
+              <Tabs defaultValue='outlinks' className='w-full'>
+                <TabsList className='grid w-full grid-cols-2'>
+                  <TabsTrigger value='outlinks'>
+                    Outlinks ({outlinks.length})
+                  </TabsTrigger>
+                  <TabsTrigger value='inlinks'>
+                    Inlinks ({inlinks.length})
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value='outlinks' className='mt-4'>
+                  {outlinks.length ? (
+                    <div className='bg-muted/30 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3'>
+                      {outlinks.map((link) => {
+                        const targetUrl = link.target?.url ?? link.targetUrl;
+                        const status =
+                          link.target?.status ?? link.status ?? null;
+                        const relLabel = !link.follow ? 'nofollow' : 'follow';
+                        return (
+                          <div
+                            key={link.id}
+                            className='flex items-start justify-between gap-3 border-b pb-2 last:border-none'
+                          >
+                            <div className='flex flex-1 flex-col gap-1'>
+                              <span className='text-foreground text-sm font-medium break-all'>
+                                {ellipsisUrl(targetUrl)}
+                              </span>
+                              <div className='text-muted-foreground text-xs'>
+                                {link.anchor
+                                  ? `Anchor: ${link.anchor}`
+                                  : 'Anchor: —'}
+                              </div>
+                              <div className='text-muted-foreground text-xs'>
+                                {relLabel}
+                                {link.rel ? ` · rel="${link.rel}"` : ''}
+                              </div>
+                            </div>
+                            <div className='flex shrink-0 flex-col items-end gap-2'>
+                              {status ? statusCodeBadge(status) : null}
+                              <Link
+                                href={targetUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                aria-label='Open outlink in new tab'
+                              >
+                                <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className='text-muted-foreground py-8 text-center text-sm'>
+                      No internal outlinks found
+                    </div>
+                  )}
+                </TabsContent>
+                <TabsContent value='inlinks' className='mt-4'>
+                  {inlinks.length ? (
+                    <div className='bg-muted/30 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3'>
+                      {inlinks.map((link) => {
+                        const sourceUrl = link.source?.url ?? 'Unknown source';
+                        const status =
+                          link.source?.status ?? link.status ?? null;
+                        const relLabel = !link.follow ? 'nofollow' : 'follow';
+                        return (
+                          <div
+                            key={link.id}
+                            className='flex items-start justify-between gap-3 border-b pb-2 last:border-none'
+                          >
+                            <div className='flex flex-1 flex-col gap-1'>
+                              <span className='text-foreground text-sm font-medium break-all'>
+                                {ellipsisUrl(sourceUrl)}
+                              </span>
+                              <div className='text-muted-foreground text-xs'>
+                                {link.anchor
+                                  ? `Anchor: ${link.anchor}`
+                                  : 'Anchor: —'}
+                              </div>
+                              <div className='text-muted-foreground text-xs'>
+                                {relLabel}
+                                {link.rel ? ` · rel="${link.rel}"` : ''}
+                              </div>
+                            </div>
+                            <div className='flex shrink-0 flex-col items-end gap-2'>
+                              {status ? statusCodeBadge(status) : null}
+                              <Link
+                                href={sourceUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                aria-label='Open inlinking page in new tab'
+                              >
+                                <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
+                              </Link>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className='text-muted-foreground py-8 text-center text-sm'>
+                      No internal inlinks found
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>
 
-        <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
-          <Card>
-            <CardHeader className='flex flex-row items-center gap-2'>
-              <CardTitle className='flex items-center gap-2'>
-                Internal Outlinks ({outlinks.length})
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className='text-muted-foreground h-4 w-4 cursor-help' />
-                    </TooltipTrigger>
-                    <TooltipContent side='top' align='center' sideOffset={4}>
-                      <p>
-                        Links pointing from this URL to other internal pages
-                        discovered in the latest crawl.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </CardTitle>
+        {/* Right Column: Issues */}
+        <div className='lg:col-span-1'>
+          <Card className='h-full'>
+            <CardHeader>
+              <CardTitle>Issues Detected</CardTitle>
+              <CardDescription>
+                {issues.length} total issues found
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {outlinks.length ? (
-                <div className='bg-muted/30 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3'>
-                  {outlinks.map((link) => {
-                    const targetUrl = link.target?.url ?? link.targetUrl;
-                    const status = link.target?.status ?? link.status ?? null;
-                    const relLabel = !link.follow ? 'nofollow' : 'follow';
-                    return (
-                      <div
-                        key={link.id}
-                        className='flex items-start justify-between gap-3 border-b pb-2 last:border-none'
-                      >
-                        <div className='flex flex-1 flex-col gap-1'>
-                          <span className='text-foreground text-sm font-medium'>
-                            {ellipsisUrl(targetUrl)}
-                          </span>
-                          <div className='text-muted-foreground text-xs'>
-                            {link.anchor
-                              ? `Anchor: ${link.anchor}`
-                              : 'Anchor: —'}
-                          </div>
-                          <div className='text-muted-foreground text-xs'>
-                            {relLabel}
-                            {link.rel ? ` · rel="${link.rel}"` : ''}
-                          </div>
-                        </div>
-                        <div className='flex shrink-0 flex-col items-end gap-2'>
-                          {status ? statusCodeBadge(status) : null}
-                          <Link
-                            href={targetUrl}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            aria-label='Open outlink in new tab'
-                          >
-                            <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
-                          </Link>
-                        </div>
+            <CardContent className='space-y-6'>
+              <div>
+                <h4 className='mb-2 flex items-center gap-2 text-sm font-semibold'>
+                  <IconAlertTriangle className='h-4 w-4 text-red-500' />
+                  Critical Alerts ({alerts.length})
+                </h4>
+                {alerts.length ? (
+                  <div className='space-y-2'>
+                    {alerts.map((issue, idx) => (
+                      <div key={idx}>
+                        {issueMap(issue.issueKey, issue.issueKey)}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <span className='text-muted-foreground'>
-                  No internal outlinks found
-                </span>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className='text-muted-foreground text-xs'>
+                    No critical alerts.
+                  </p>
+                )}
+              </div>
 
-          <Card>
-            <CardHeader className='flex flex-row items-center gap-2'>
-              <CardTitle className='flex items-center gap-2'>
-                Internal Inlinks ({inlinks.length})
-                <TooltipProvider delayDuration={300}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className='text-muted-foreground h-4 w-4 cursor-help' />
-                    </TooltipTrigger>
-                    <TooltipContent side='top' align='center' sideOffset={4}>
-                      <p>
-                        Internal pages that link to this URL, captured during
-                        the latest crawl.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {inlinks.length ? (
-                <div className='bg-muted/30 grid max-h-60 grid-cols-1 gap-2 overflow-y-auto rounded-md border p-3'>
-                  {inlinks.map((link) => {
-                    const sourceUrl = link.source?.url ?? 'Unknown source';
-                    const status = link.source?.status ?? link.status ?? null;
-                    const relLabel = !link.follow ? 'nofollow' : 'follow';
-                    return (
-                      <div
-                        key={link.id}
-                        className='flex items-start justify-between gap-3 border-b pb-2 last:border-none'
-                      >
-                        <div className='flex flex-1 flex-col gap-1'>
-                          <span className='text-foreground text-sm font-medium'>
-                            {ellipsisUrl(sourceUrl)}
-                          </span>
-                          <div className='text-muted-foreground text-xs'>
-                            {link.anchor
-                              ? `Anchor: ${link.anchor}`
-                              : 'Anchor: —'}
-                          </div>
-                          <div className='text-muted-foreground text-xs'>
-                            {relLabel}
-                            {link.rel ? ` · rel="${link.rel}"` : ''}
-                          </div>
-                        </div>
-                        <div className='flex shrink-0 flex-col items-end gap-2'>
-                          {status ? statusCodeBadge(status) : null}
-                          <Link
-                            href={sourceUrl}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            aria-label='Open inlinking page in new tab'
-                          >
-                            <IconLink className='text-muted-foreground hover:text-foreground h-4 w-4' />
-                          </Link>
-                        </div>
+              <Separator />
+
+              <div>
+                <h4 className='mb-2 flex items-center gap-2 text-sm font-semibold'>
+                  <IconInfoCircle className='h-4 w-4 text-orange-500' />
+                  Warnings ({warnings.length})
+                </h4>
+                {warnings.length ? (
+                  <div className='space-y-2'>
+                    {warnings.map((issue, idx) => (
+                      <div key={idx}>
+                        {issueMap(issue.issueKey, issue.issueKey)}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <span className='text-muted-foreground'>
-                  No internal inlinks found
-                </span>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <p className='text-muted-foreground text-xs'>No warnings.</p>
+                )}
+              </div>
+
+              <Separator />
+
+              <div>
+                <h4 className='mb-2 flex items-center gap-2 text-sm font-semibold'>
+                  <IconCheck className='h-4 w-4 text-blue-500' />
+                  Opportunities ({opportunities.length})
+                </h4>
+                {opportunities.length ? (
+                  <div className='space-y-2'>
+                    {opportunities.map((issue, idx) => (
+                      <div key={idx}>
+                        {issueMap(issue.issueKey, issue.issueKey)}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className='text-muted-foreground text-xs'>
+                    No opportunities.
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

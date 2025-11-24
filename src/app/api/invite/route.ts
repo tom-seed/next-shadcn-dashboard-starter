@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { clerkClient } from '@clerk/nextjs/server';
+import { clerkClient, auth } from '@clerk/nextjs/server';
 import { requireAgencyAccess } from '@/lib/rbac';
 import prisma from '@/lib/db';
 
@@ -30,26 +30,66 @@ export async function POST(request: Request) {
 
     const { clientId, email, role } = payload.data;
 
-    // Get client from database
-    const client = await prisma.client.findUnique({
-      where: { id: clientId }
-    });
-
-    if (!client || !client.clerkOrganizationId) {
-      return NextResponse.json(
-        { error: 'Client organization not available' },
-        { status: 400 }
-      );
-    }
-
-    // Create Clerk organization invitation
+    // 1. Check if User Exists in our DB
+    // We need to look up the user by email. Since we don't store email in our User table (only clerkUserId),
+    // we have to query Clerk first to get the userId for this email.
     const clerk = await clerkClient();
+    let existingUserId: string | null = null;
 
     try {
-      await clerk.organizations.createOrganizationInvitation({
-        organizationId: client.clerkOrganizationId,
+      const userList = await clerk.users.getUserList({ emailAddress: [email] });
+      if (userList.data.length > 0) {
+        existingUserId = userList.data[0].id;
+      }
+    } catch (e) {
+      console.error('Failed to lookup user in Clerk', e);
+    }
+
+    if (existingUserId) {
+      // 2a. Grant Immediate Access
+      await prisma.clientMembership.upsert({
+        where: {
+          clientId_clerkUserId: {
+            clientId,
+            clerkUserId: existingUserId
+          }
+        },
+        update: {
+          role: role
+        },
+        create: {
+          clientId,
+          clerkUserId: existingUserId,
+          role: role
+        }
+      });
+
+      return NextResponse.json({ ok: true, message: 'User added immediately' });
+    }
+
+    // 2b. Invite New User via Clerk (Application Invitation)
+    // This sends the email for us.
+    try {
+      const invitation = await clerk.invitations.createInvitation({
         emailAddress: email,
-        role: role === 'CLIENT_ADMIN' ? 'org:admin' : 'org:member'
+        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+        publicMetadata: {
+          invitedToClientId: clientId,
+          invitedRole: role
+        }
+      });
+
+      // 3. Store Invitation Record
+      // We store this so we can link them when they sign up (via webhook)
+      await prisma.clientInvite.create({
+        data: {
+          email,
+          clientId,
+          role,
+          token: invitation.id,
+          inviterId: (await auth()).userId!,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+        }
       });
     } catch (error) {
       // eslint-disable-next-line no-console
@@ -60,7 +100,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, message: 'Invitation sent' });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to invite user:', error);

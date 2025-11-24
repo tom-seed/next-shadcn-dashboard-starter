@@ -44,7 +44,7 @@ export async function inviteUserAction(payload: {
   clientId: number | string;
   email: string;
   role: Extract<ClientRole, 'CLIENT_ADMIN' | 'CLIENT_VIEWER'>;
-}): Promise<{ ok: boolean }> {
+}): Promise<{ ok: boolean; message?: string }> {
   const response = await fetch('/api/invite', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

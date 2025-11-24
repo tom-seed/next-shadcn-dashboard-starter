@@ -41,8 +41,9 @@ export default async function OverViewPage() {
   }
 
   const data = await getClientsOverviewForUser(userId);
+  const isDev = process.env.NODE_ENV === 'development';
 
-  if (!memberships.length) {
+  if (!memberships.length && !globalAdmin && !isDev) {
     return (
       <PageContainer>
         <div className='flex w-full flex-col space-y-4'>

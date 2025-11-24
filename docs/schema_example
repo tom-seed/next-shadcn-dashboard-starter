@@ -1,0 +1,527 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  extensions        = [vector]
+}
+
+model User {
+  id               String                    @id @default(cuid())
+  clerkId          String                    @unique
+  email            String
+  isSuperUser      Boolean                   @default(false)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  memberships      OrganizationMembership[]
+  clientAccesses   ClientAccess[]
+  sentInvitations  ClientInvitation[]
+  promptFeedbacks  PromptFeedback[]
+}
+
+model Organization {
+  id                   String                    @id @default(cuid())
+  clerkOrgId           String?                   @unique
+  name                 String
+  slug                 String                    @unique
+  domain               String?
+  plan                 OrgPlan                   @default(FREE)
+  stripeCustomerId     String?                   @unique
+  stripeSubscriptionId String?                   @unique
+  billingEmail         String?
+  subscriptionStatus   SubscriptionStatus        @default(INACTIVE)
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  memberships          OrganizationMembership[]
+  clients              Client[]
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrgRole      @default(MEMBER)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model ClientAccess {
+  id        String     @id @default(cuid())
+  userId    String
+  clientId  String
+  role      ClientRole @default(VIEWER)
+  createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([clientId])
+}
+
+model ClientInvitation {
+  id        String      @id @default(cuid())
+  email     String
+  clientId  String
+  role      ClientRole
+  token     String      @unique @default(cuid())
+  expiresAt DateTime
+  acceptedAt DateTime?
+  invitedBy String
+  createdAt DateTime    @default(now())
+  
+  client    Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  inviter   User        @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  
+  @@index([email])
+  @@index([clientId])
+  @@index([token])
+}
+
+model Client {
+  id                String                   @id @default(cuid())
+  organizationId    String
+  name              String
+  description       String?
+  aliases           String[]                 @default([])
+  timezone          String                   @default("UTC")
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  terms             Term[]
+  runs              Run[]
+  runSchedules      RunSchedule[]
+  visibilityHistory BrandVisibilityHistory[]
+  promptFeedbacks   PromptFeedback[]
+  insights          ActionableInsight[]
+  url               String?
+  companyId         String?
+  organization      Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company           Company?                 @relation(fields: [companyId], references: [id])
+  clientAccesses    ClientAccess[]
+  invitations       ClientInvitation[]
+
+  @@index([organizationId])
+}
+
+model Term {
+  id                String                   @id @default(cuid())
+  clientId          String
+  value             String
+  createdAt         DateTime                 @default(now())
+  kind              TermKind                 @default(KEYWORD)
+  promptsLocked     Boolean                  @default(false)
+  prompts           PromptSuggestion[]
+  runTerms          RunTerm[]
+  sovRows           ShareOfVoice[]
+  visibilityHistory BrandVisibilityHistory[]
+  promptFeedbacks   PromptFeedback[]
+  client            Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, value])
+}
+
+model PromptSuggestion {
+  id         String     @id @default(cuid())
+  termId     String
+  kind       PromptKind
+  text       String
+  createdAt  DateTime   @default(now())
+  archivedAt DateTime?
+  term       Term       @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([termId, archivedAt])
+}
+
+enum PromptKind {
+  INFORMATIONAL
+  TRANSACTIONAL
+  BRAND_PULSE
+}
+
+model Run {
+  id                String                   @id @default(cuid())
+  clientId          String
+  scheduleId        String?
+  status            RunStatus                @default(PENDING)
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  error             String?
+  createdAt         DateTime                 @default(now())
+  runTerms          RunTerm[]
+  sovRows           ShareOfVoice[]
+  visibilityHistory BrandVisibilityHistory[]
+  promptFeedbacks   PromptFeedback[]
+  insights          ActionableInsight[]
+  client            Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  schedule          RunSchedule?             @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([scheduleId])
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  FAILED
+  COMPLETED
+}
+
+enum TermKind {
+  KEYWORD
+  BRAND_PULSE
+}
+
+model RunTerm {
+  id                String             @id @default(cuid())
+  runId             String
+  termId            String
+  providerResponses ProviderResponse[]
+  promptStats       PromptStat[]
+  domainStats       DomainStat[]
+  brandRanks        BrandRank[]
+  promptFeedbacks   PromptFeedback[]
+  createdAt         DateTime           @default(now())
+  run               Run                @relation(fields: [runId], references: [id], onDelete: Cascade)
+  term              Term               @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, termId])
+}
+
+model ProviderResponse {
+  id                    String               @id @default(cuid())
+  runTermId             String
+  provider              Provider
+  promptText            String
+  completion            String
+  tokensIn              Int?
+  tokensOut             Int?
+  latencyMs             Int?
+  createdAt             DateTime             @default(now())
+  citations             Citation[]
+  completionEmbedding   CompletionEmbedding?
+  primarySimilarities   ResponseSimilarity[] @relation("SimilarityPrimary")
+  secondarySimilarities ResponseSimilarity[] @relation("SimilarityOther")
+  insight               ResponseInsight?
+  runTerm               RunTerm              @relation(fields: [runTermId], references: [id], onDelete: Cascade)
+
+  @@index([runTermId, provider])
+}
+
+enum Provider {
+  OPENAI
+  GEMINI
+  CLAUDE
+  GOOGLE_AI_OVERVIEW
+}
+
+model Citation {
+  id         String           @id @default(cuid())
+  responseId String
+  url        String
+  domain     String
+  companyId  String?
+  response   ProviderResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  company    Company?         @relation(fields: [companyId], references: [id])
+
+  @@index([domain])
+  @@index([responseId])
+}
+
+model Company {
+  id                String                   @id @default(cuid())
+  domain            String                   @unique
+  name              String
+  homepage          String?
+  citations         Citation[]
+  sovRows           ShareOfVoice[]
+  domainStats       DomainStat[]
+  brandRanks        BrandRank[]
+  clients           Client[]
+  visibilityHistory BrandVisibilityHistory[]
+}
+
+model ShareOfVoice {
+  id        String    @id @default(cuid())
+  runId     String
+  termId    String
+  provider  Provider?
+  companyId String
+  mentions  Int
+  share     Float
+  run       Run       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  term      Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([runId, termId, provider])
+  @@index([runId, provider])
+}
+
+model PromptStat {
+  id        String   @id @default(cuid())
+  runTermId String
+  text      String
+  provider  Provider
+  brands    Int
+  sources   Int
+  mentions  Int
+  runTerm   RunTerm  @relation(fields: [runTermId], references: [id], onDelete: Cascade)
+
+  @@index([runTermId, provider])
+}
+
+model DomainStat {
+  id        String    @id @default(cuid())
+  runTermId String
+  domain    String
+  companyId String?
+  provider  Provider?
+  mentions  Int
+  runTerm   RunTerm   @relation(fields: [runTermId], references: [id], onDelete: Cascade)
+  company   Company?  @relation(fields: [companyId], references: [id])
+
+  @@index([runTermId, provider])
+  @@index([domain])
+}
+
+model BrandRank {
+  id        String    @id @default(cuid())
+  runTermId String
+  companyId String
+  provider  Provider?
+  mentions  Int
+  share     Float
+  position  Float
+  runTerm   RunTerm   @relation(fields: [runTermId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([runTermId, provider])
+}
+
+model CompletionEmbedding {
+  id         String           @id @default(cuid())
+  responseId String           @unique
+  provider   Provider
+  embedding  Unsupported("vector(1536)")
+  dimension  Int
+  createdAt  DateTime         @default(now())
+  response   ProviderResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([provider])
+}
+
+enum SentimentLabel {
+  NEGATIVE
+  NEUTRAL
+  POSITIVE
+}
+
+model ResponseInsight {
+  id             String            @id @default(cuid())
+  responseId     String            @unique
+  sentiment      SentimentLabel
+  sentimentScore Float
+  tone           String?
+  highlights     Json?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  response       ProviderResponse  @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  attributes     ResponseAttribute[]
+
+  @@index([sentiment])
+}
+
+model ResponseAttribute {
+  id         String          @id @default(cuid())
+  insightId  String
+  label      String
+  sentiment  SentimentLabel?
+  score      Float?
+  createdAt  DateTime        @default(now())
+  insight    ResponseInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+
+  @@index([insightId, label])
+}
+
+enum SimilarityKind {
+  RUN_TO_RUN
+  CROSS_PROVIDER
+}
+
+model ResponseSimilarity {
+  id              String           @id @default(cuid())
+  responseId      String
+  otherResponseId String
+  kind            SimilarityKind
+  score           Float
+  computedAt      DateTime         @default(now())
+  response        ProviderResponse @relation("SimilarityPrimary", fields: [responseId], references: [id], onDelete: Cascade)
+  otherResponse   ProviderResponse @relation("SimilarityOther", fields: [otherResponseId], references: [id], onDelete: Cascade)
+
+  @@unique([responseId, otherResponseId, kind])
+  @@index([responseId, kind])
+  @@index([otherResponseId, kind])
+}
+
+enum PromptFeedbackStatus {
+  DECLINED
+  REPLACED
+}
+
+model PromptFeedback {
+  id         String               @id @default(cuid())
+  clientId   String
+  termId     String
+  runId      String?
+  runTermId  String?
+  provider   Provider?
+  promptText String
+  status     PromptFeedbackStatus @default(DECLINED)
+  reason     String?
+  createdBy  String
+  createdAt  DateTime             @default(now())
+  client     Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  term       Term                 @relation(fields: [termId], references: [id], onDelete: Cascade)
+  run        Run?                 @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runTerm    RunTerm?             @relation(fields: [runTermId], references: [id], onDelete: SetNull)
+  user       User                 @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([termId])
+  @@index([runId])
+  @@index([runTermId])
+  @@index([createdBy])
+}
+
+enum RunCadence {
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+}
+
+enum ScheduleStatus {
+  IDLE
+  QUEUED
+  RUNNING
+  FAILED
+}
+
+model RunSchedule {
+  id        String         @id @default(cuid())
+  clientId  String
+  cadence   RunCadence     @default(WEEKLY)
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  lastBrandPulseRunAt DateTime?
+  lastIdeasRunAt      DateTime?
+  status    ScheduleStatus @default(IDLE)
+  error     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  runs      Run[]
+
+  @@index([clientId])
+  @@index([status, nextRunAt])
+}
+
+model BrandVisibilityHistory {
+  id            String    @id @default(cuid())
+  clientId      String
+  termId        String
+  runId         String
+  companyId     String?
+  provider      Provider?
+  mentions      Int
+  share         Float
+  deltaMentions Int?
+  deltaShare    Float?
+  recordedAt    DateTime  @default(now())
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  term          Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  run           Run       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  company       Company?  @relation(fields: [companyId], references: [id])
+
+  @@index([clientId, recordedAt])
+  @@index([termId, provider, recordedAt])
+  @@index([runId])
+}
+
+model ActionableInsight {
+  id               String               @id @default(cuid())
+  runId            String
+  clientId         String
+  category         InsightCategory
+  priority         InsightPriority
+  title            String
+  description      String
+  impact           String
+  effort           String
+  steps            Json                 // Array of {text: string, completed: boolean}
+  relatedBrands    String[]             @default([])
+  relatedKeywords  String[]             @default([])
+  completed        Boolean              @default(false)
+  dismissedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  run              Run                  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  client           Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([clientId, createdAt])
+}
+
+enum InsightCategory {
+  content
+  visibility
+  competition
+  strategy
+}
+
+enum InsightPriority {
+  high
+  medium
+  low
+}
+
+enum OrgPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum ClientRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}

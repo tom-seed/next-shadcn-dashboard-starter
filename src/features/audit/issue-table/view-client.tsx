@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { TaskCreateDialog } from '@/features/tasks/task-create-dialog';
 import { Download } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useQueryStates,
   parseAsInteger,
@@ -78,7 +81,6 @@ export default function AuditIssueViewClient({
   clientId,
   issueKey
 }: AuditIssueViewClientProps) {
-  const columns = getAuditIssueColumns();
   const [data, setData] = useState<AuditIssueRow[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [isPending, startTransition] = useTransition();
@@ -113,7 +115,9 @@ export default function AuditIssueViewClient({
               issue.urlIdFromJoin ??
               issue.url?.id ??
               undefined,
-            clientId
+            clientId,
+            status: issue.status,
+            priority: issue.priority
           }))
           .filter((row: AuditIssueRow) => !!row.url)
       : [];
@@ -121,6 +125,8 @@ export default function AuditIssueViewClient({
     setData(urls);
     setTotalItems(result.totalCount || 0);
   }, 300);
+
+  const columns = getAuditIssueColumns(fetchData);
 
   useEffect(() => {
     startTransition(() => {
@@ -185,62 +191,117 @@ export default function AuditIssueViewClient({
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ')}
         </h1>
-        <Button
-          variant='outline'
-          size='sm'
-          onClick={exportCsv}
-          className='gap-2'
-        >
-          <Download className='h-4 w-4' /> Export CSV
-        </Button>
+        <TaskCreateDialog
+          clientId={clientId}
+          defaultTitle={`Fix ${issueKey.split('_').join(' ')}`}
+        />
       </div>
-      {issueKey === 'too_long_title_urls' && <TitlesTooLong />}
-      {issueKey === 'too_short_title' && <TitlesTooShort />}
-      {issueKey === 'pages_missing_title' && <TitlesMissing />}
-      {issueKey === 'too_long_description' && <DescriptionsTooLong />}
-      {issueKey === 'too_short_description' && <DescriptionsTooShort />}
-      {issueKey === 'pages_missing_description' && <DescriptionsMissing />}
-      {issueKey === 'pages_missing_h1' && <Heading1Missing />}
-      {issueKey === 'pages_missing_h2' && <Heading2Missing />}
-      {issueKey === 'pages_missing_h3' && <Heading3Missing />}
-      {issueKey === 'pages_missing_h4' && <Heading4Missing />}
-      {issueKey === 'pages_missing_h5' && <Heading5Missing />}
-      {issueKey === 'pages_missing_h6' && <Heading6Missing />}
-      {issueKey === 'pages_with_multiple_h1s' && <Heading1Multiple />}
-      {issueKey === 'pages_with_multiple_h2s' && <Heading2Multiple />}
-      {issueKey === 'pages_with_multiple_h3s' && <Heading3Multiple />}
-      {issueKey === 'pages_with_multiple_h4s' && <Heading4Multiple />}
-      {issueKey === 'pages_with_multiple_h5s' && <Heading5Multiple />}
-      {issueKey === 'pages_with_multiple_h6s' && <Heading6Multiple />}
-      {issueKey === 'pages_with_duplicate_h1s' && <Heading1Duplicate />}
-      {issueKey === 'pages_with_duplicate_h2s' && <Heading2Duplicate />}
-      {issueKey === 'pages_with_duplicate_h3s' && <Heading3Duplicate />}
-      {issueKey === 'pages_with_duplicate_h4s' && <Heading4Duplicate />}
-      {issueKey === 'pages_with_duplicate_h5s' && <Heading5Duplicate />}
-      {issueKey === 'pages_with_duplicate_h6s' && <Heading6Duplicate />}
-      {issueKey === 'pages_missing_canonical' && <MissingCanonical />}
-      {issueKey === 'pages_canonicalised' && <Canonicalised />}
-      <AuditIssueTable
-        data={data}
-        totalItems={totalItems}
-        columns={columns}
-        initialPage={searchParams.page}
-        initialPerPage={searchParams.perPage}
-        onSortingChange={(updater) => {
-          const nextSort = resolveUpdater<SortingState>(updater, []);
-          const sortParams = nextSort.map(
-            (s) => `${s.id}:${s.desc ? 'desc' : 'asc'}`
-          );
-          setSearchParams((prev) => ({ ...prev, sort: sortParams, page: 1 }));
-        }}
-        onColumnFiltersChange={(updater) => {
-          const nextFilters = resolveUpdater<ColumnFiltersState>(updater, []);
-          const filterMap = Object.fromEntries(
-            nextFilters.map((f) => [f.id, f.value])
-          );
-          setSearchParams((prev) => ({ ...prev, ...filterMap, page: 1 }));
-        }}
-      />
+
+      <Tabs defaultValue='overview' className='flex w-full flex-1 flex-col'>
+        <TabsList>
+          <TabsTrigger value='overview'>Overview</TabsTrigger>
+          <TabsTrigger value='fix-tasks'>Fix Tasks</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value='overview' className='space-y-4'>
+          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+            <Card>
+              <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+                <CardTitle className='text-sm font-medium'>
+                  Total Affected URLs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className='text-2xl font-bold'>{totalItems}</div>
+                <p className='text-muted-foreground text-xs'>
+                  Pages requiring attention
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Issue Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {issueKey === 'too_long_title_urls' && <TitlesTooLong />}
+              {issueKey === 'too_short_title' && <TitlesTooShort />}
+              {issueKey === 'pages_missing_title' && <TitlesMissing />}
+              {issueKey === 'too_long_description' && <DescriptionsTooLong />}
+              {issueKey === 'too_short_description' && <DescriptionsTooShort />}
+              {issueKey === 'pages_missing_description' && (
+                <DescriptionsMissing />
+              )}
+              {issueKey === 'pages_missing_h1' && <Heading1Missing />}
+              {issueKey === 'pages_missing_h2' && <Heading2Missing />}
+              {issueKey === 'pages_missing_h3' && <Heading3Missing />}
+              {issueKey === 'pages_missing_h4' && <Heading4Missing />}
+              {issueKey === 'pages_missing_h5' && <Heading5Missing />}
+              {issueKey === 'pages_missing_h6' && <Heading6Missing />}
+              {issueKey === 'pages_with_multiple_h1s' && <Heading1Multiple />}
+              {issueKey === 'pages_with_multiple_h2s' && <Heading2Multiple />}
+              {issueKey === 'pages_with_multiple_h3s' && <Heading3Multiple />}
+              {issueKey === 'pages_with_multiple_h4s' && <Heading4Multiple />}
+              {issueKey === 'pages_with_multiple_h5s' && <Heading5Multiple />}
+              {issueKey === 'pages_with_multiple_h6s' && <Heading6Multiple />}
+              {issueKey === 'pages_with_duplicate_h1s' && <Heading1Duplicate />}
+              {issueKey === 'pages_with_duplicate_h2s' && <Heading2Duplicate />}
+              {issueKey === 'pages_with_duplicate_h3s' && <Heading3Duplicate />}
+              {issueKey === 'pages_with_duplicate_h4s' && <Heading4Duplicate />}
+              {issueKey === 'pages_with_duplicate_h5s' && <Heading5Duplicate />}
+              {issueKey === 'pages_with_duplicate_h6s' && <Heading6Duplicate />}
+              {issueKey === 'pages_missing_canonical' && <MissingCanonical />}
+              {issueKey === 'pages_canonicalised' && <Canonicalised />}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent
+          value='fix-tasks'
+          className='flex h-full flex-1 flex-col space-y-4'
+        >
+          <div className='flex justify-end'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={exportCsv}
+              className='gap-2'
+            >
+              <Download className='h-4 w-4' /> Export CSV
+            </Button>
+          </div>
+
+          <AuditIssueTable
+            data={data}
+            totalItems={totalItems}
+            columns={columns}
+            initialPage={searchParams.page}
+            initialPerPage={searchParams.perPage}
+            onSortingChange={(updater) => {
+              const nextSort = resolveUpdater<SortingState>(updater, []);
+              const sortParams = nextSort.map(
+                (s) => `${s.id}:${s.desc ? 'desc' : 'asc'}`
+              );
+              setSearchParams((prev) => ({
+                ...prev,
+                sort: sortParams,
+                page: 1
+              }));
+            }}
+            onColumnFiltersChange={(updater) => {
+              const nextFilters = resolveUpdater<ColumnFiltersState>(
+                updater,
+                []
+              );
+              const filterMap = Object.fromEntries(
+                nextFilters.map((f) => [f.id, f.value])
+              );
+              setSearchParams((prev) => ({ ...prev, ...filterMap, page: 1 }));
+            }}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
