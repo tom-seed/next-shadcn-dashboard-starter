@@ -440,13 +440,13 @@ ALTER TABLE "AuditIssue" ADD CONSTRAINT "AuditIssue_clientId_fkey" FOREIGN KEY (
 ALTER TABLE "AuditIssue" ADD CONSTRAINT "AuditIssue_urlId_fkey" FOREIGN KEY ("urlId") REFERENCES "Urls"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Task" ADD CONSTRAINT "Task_auditIssueId_fkey" FOREIGN KEY ("auditIssueId") REFERENCES "AuditIssue"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Task" ADD CONSTRAINT "Task_urlId_fkey" FOREIGN KEY ("urlId") REFERENCES "Urls"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Task" ADD CONSTRAINT "Task_auditIssueId_fkey" FOREIGN KEY ("auditIssueId") REFERENCES "AuditIssue"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE ON UPDATE CASCADE;
