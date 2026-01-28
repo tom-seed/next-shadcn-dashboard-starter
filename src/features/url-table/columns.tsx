@@ -130,7 +130,14 @@ export function getUrlColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='Meta Title' />
       ),
-      cell: ({ cell }) => <span>{(cell.getValue() as string) || 'N/A'}</span>,
+      cell: ({ cell }) => (
+        <span
+          className='block max-w-[400px] truncate'
+          title={(cell.getValue() as string) || 'N/A'}
+        >
+          {(cell.getValue() as string) || 'N/A'}
+        </span>
+      ),
       enableColumnFilter: true,
       enableSorting: true,
       enableResizing: true,

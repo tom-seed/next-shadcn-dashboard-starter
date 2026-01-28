@@ -56,7 +56,11 @@ export async function GET(
       );
     }
 
-    let issues: { id: number; url: { id: number; url: string } | null }[] = [];
+    let issues: {
+      id: number;
+      url: { id: number; url: string } | null;
+      metadata?: any;
+    }[] = [];
     let totalCount = 0;
 
     // Special handling for Status Code aggregates
@@ -203,7 +207,7 @@ export async function GET(
           }
         })
       ]);
-      issues = auditIssues;
+      issues = auditIssues.map((i) => ({ ...i, metadata: i.metadata }));
       totalCount = count;
     }
 
@@ -211,6 +215,7 @@ export async function GET(
       id: issue.id,
       urlId: issue.url?.id ?? null,
       url: issue.url?.url ?? '(URL missing)',
+      metadata: issue.metadata ?? null,
       // @ts-ignore - these fields exist on AuditIssue but not on the mapped Url/Image objects
       status: issue.status ?? 'OPEN',
       // @ts-ignore

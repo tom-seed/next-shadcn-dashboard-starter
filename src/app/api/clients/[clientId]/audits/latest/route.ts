@@ -46,8 +46,31 @@ export async function GET(
       );
     }
 
+    const [cannibalisationCount, clusterCount, suggestionCount] =
+      await Promise.all([
+        prisma.auditIssue.count({
+          where: {
+            auditId: latest.audit.id,
+            issueKey: 'cannibalisation_group'
+          }
+        }),
+        prisma.embeddingCluster.count({
+          where: { crawlId: latest.id }
+        }),
+        prisma.internalLinkSuggestion.count({
+          where: { crawlId: latest.id }
+        })
+      ]);
+
     return NextResponse.json({
-      latest: latest.audit,
+      latest: {
+        ...latest.audit,
+        semantic: {
+          cannibalisation: cannibalisationCount,
+          clusters: clusterCount,
+          suggestions: suggestionCount
+        }
+      },
       previous: previous?.audit ?? null
     });
   } catch {

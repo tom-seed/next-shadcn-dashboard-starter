@@ -1,14 +1,13 @@
-import { PrismaClient } from '@prisma/client';
 import { Suspense } from 'react';
 import { auth } from '@clerk/nextjs/server';
 import { notFound, redirect } from 'next/navigation';
 
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@/components/ui/heading';
-import { Separator } from '@/components/ui/separator';
 import { DataTableSkeleton } from '@/components/ui/table/data-table-skeleton';
 import UrlListingPage from '@/features/url-table/url-listing-page';
 import { ensureClientAccess } from '@/lib/auth/memberships';
+import prisma from '@/lib/db';
 
 export const metadata = {
   title: 'Dashboard | URLs | Atlas'
@@ -38,8 +37,6 @@ export default async function UrlsPage({ params }: PageProps) {
     notFound();
   }
 
-  const prisma = new PrismaClient();
-
   const latestCrawl = await prisma.crawl.findFirst({
     where: { clientId: parsedClientId },
     orderBy: { createdAt: 'desc' },
@@ -55,7 +52,6 @@ export default async function UrlsPage({ params }: PageProps) {
             description='All URLs crawled for this client.'
           />
         </div>
-        <Separator />
         <Suspense
           fallback={<DataTableSkeleton columnCount={3} rowCount={10} />}
         >

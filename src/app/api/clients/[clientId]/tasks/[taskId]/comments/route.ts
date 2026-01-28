@@ -31,7 +31,7 @@ export async function GET(
     const comments = await prisma.comment.findMany({
       where: {
         taskId: tId,
-        task: {
+        Task: {
           clientId: id
         }
       },

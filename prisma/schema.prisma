@@ -21,13 +21,13 @@ model Client {
   updatedAt           DateTime           @default(now()) @updatedAt
   audits              Audit[]
   auditIssues         AuditIssue[]
-  invites             ClientInvite[]
+  ClientInvite        ClientInvite[]
   memberships         ClientMembership[]
   crawls              Crawl[]
   hreflangLinks       HreflangLink[]
   images              Image[]
   internalLinks       InternalLink[]
-  tasks               Task[]
+  Task                Task[]
   urls                Urls[]
 }
 
@@ -55,22 +55,26 @@ model User {
 }
 
 model Crawl {
-  id            Int            @id @default(autoincrement())
-  clientId      Int
-  url           String
-  createdAt     DateTime       @default(now())
-  state         CrawlState     @default(STARTED)
-  audit         Audit?
-  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  hreflangLinks HreflangLink[]
-  images        Image[]
-  internalLinks InternalLink[]
-  urls          Urls[]
-  batchId       String?
+  id                      Int                      @id @default(autoincrement())
+  clientId                Int
+  url                     String
+  createdAt               DateTime                 @default(now())
+  state                   CrawlState               @default(STARTED)
+  batchId                 String?
+  audit                   Audit?
+  contentChangesCurrent   ContentChange[]          @relation("CurrentCrawlChange")
+  contentChangesPrevious  ContentChange[]          @relation("PreviousCrawlChange")
+  client                  Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  embeddingClusters       EmbeddingCluster[]
+  hreflangLinks           HreflangLink[]
+  images                  Image[]
+  internalLinks           InternalLink[]
+  internalLinkSuggestions InternalLinkSuggestion[]
+  urls                    Urls[]
 }
 
 model Urls {
-  id                         Int            @id @default(autoincrement())
+  id                         Int                      @id @default(autoincrement())
   clientId                   Int
   crawlId                    Int?
   url                        String
@@ -78,8 +82,8 @@ model Urls {
   redirectTarget             String?
   canonical                  String?
   canonicalStatus            Int?
-  isSelfReferencingCanonical Boolean        @default(false)
-  isCanonicalised            Boolean        @default(false)
+  isSelfReferencingCanonical Boolean                  @default(false)
+  isCanonicalised            Boolean                  @default(false)
   metaTitle                  String?
   metaDescription            String?
   h1                         String[]
@@ -88,22 +92,26 @@ model Urls {
   h4                         String[]
   h5                         String[]
   h6                         String[]
-  createdAt                  DateTime       @default(now())
+  createdAt                  DateTime                 @default(now())
   lastModified               DateTime?
-  isPagination               Boolean        @default(false)
+  isPagination               Boolean                  @default(false)
   paginationNext             String?
   paginationPrev             String?
   originalStatus             Int?
   auditIssues                AuditIssue[]
-  hreflangLinks              HreflangLink[] @relation("HreflangSource")
-  hreflangTargets            HreflangLink[] @relation("HreflangTarget")
+  contentChanges             ContentChange[]
+  clusterMembers             EmbeddingClusterMember[]
+  hreflangLinks              HreflangLink[]           @relation("HreflangSource")
+  hreflangTargets            HreflangLink[]           @relation("HreflangTarget")
   images                     Image[]
-  sourceLinks                InternalLink[] @relation("SourceLinks")
-  targetLinks                InternalLink[] @relation("TargetLinks")
-  pageEmbedding              PageEmbedding?
-  tasks                      Task[]
-  client                     Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  crawl                      Crawl?         @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  sourceLinks                InternalLink[]           @relation("SourceLinks")
+  targetLinks                InternalLink[]           @relation("TargetLinks")
+  suggestedSource            InternalLinkSuggestion[] @relation("SourceUrlSuggestions")
+  suggestedTarget            InternalLinkSuggestion[] @relation("TargetUrlSuggestions")
+  PageEmbedding              PageEmbedding?
+  Task                       Task[]
+  client                     Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawl                      Crawl?                   @relation(fields: [crawlId], references: [id], onDelete: Cascade)
 
   @@unique([crawlId, url])
 }
@@ -190,20 +198,74 @@ model Audit {
   total_images_missing_alt             Int          @default(0)
   total_images_missing_dimensions      Int          @default(0)
   total_images_unoptimized_format      Int          @default(0)
+  pages_broken_link_recommendation     Int          @default(0)
+  pages_content_similarity             Int          @default(0)
   client                               Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   crawl                                Crawl        @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   issues                               AuditIssue[]
 }
 
-model PageEmbedding {
-  id            Int                    @id @default(autoincrement())
-  urlId         Int                    @unique
-  contentVector Unsupported("vector(1536)")?
-  urlVector     Unsupported("vector(1536)")?
-  contentHash   String?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  url           Urls                   @relation(fields: [urlId], references: [id], onDelete: Cascade)
+model ContentChange {
+  id              Int      @id @default(autoincrement())
+  clientId        Int
+  currentCrawlId  Int
+  previousCrawlId Int
+  urlId           Int
+  changeType      String
+  score           Float?
+  createdAt       DateTime @default(now())
+  currentCrawl    Crawl    @relation("CurrentCrawlChange", fields: [currentCrawlId], references: [id], onDelete: Cascade)
+  previousCrawl   Crawl    @relation("PreviousCrawlChange", fields: [previousCrawlId], references: [id], onDelete: Cascade)
+  url             Urls     @relation(fields: [urlId], references: [id], onDelete: Cascade)
+
+  @@index([currentCrawlId])
+  @@index([urlId])
+}
+
+model EmbeddingCluster {
+  id        Int                      @id @default(autoincrement())
+  clientId  Int
+  crawlId   Int
+  label     String?
+  density   Float?
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+  crawl     Crawl                    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  members   EmbeddingClusterMember[]
+
+  @@index([crawlId])
+  @@index([clientId, crawlId])
+}
+
+model EmbeddingClusterMember {
+  id            Int              @id @default(autoincrement())
+  clusterId     Int
+  urlId         Int
+  isHub         Boolean          @default(false)
+  distanceToHub Float?
+  cluster       EmbeddingCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  url           Urls             @relation(fields: [urlId], references: [id], onDelete: Cascade)
+
+  @@unique([clusterId, urlId])
+  @@index([urlId])
+}
+
+model InternalLinkSuggestion {
+  id          Int      @id @default(autoincrement())
+  clientId    Int
+  crawlId     Int
+  sourceUrlId Int
+  targetUrlId Int
+  score       Float
+  anchorText  String?
+  createdAt   DateTime @default(now())
+  crawl       Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  sourceUrl   Urls     @relation("SourceUrlSuggestions", fields: [sourceUrlId], references: [id], onDelete: Cascade)
+  targetUrl   Urls     @relation("TargetUrlSuggestions", fields: [targetUrlId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceUrlId, targetUrlId])
+  @@index([crawlId])
+  @@index([sourceUrlId])
 }
 
 model AuditIssue {
@@ -221,46 +283,13 @@ model AuditIssue {
   audit     Audit         @relation(fields: [auditId], references: [id], onDelete: Cascade)
   client    Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   url       Urls          @relation(fields: [urlId], references: [id], onDelete: Cascade)
-  tasks     Task[]
+  Task      Task[]
 
   @@index([clientId])
   @@index([auditId])
   @@index([issueKey])
-  @@index([status])
   @@index([priority])
-}
-
-model Task {
-  id                  Int           @id @default(autoincrement())
-  clientId            Int
-  urlId               Int?
-  auditIssueId        Int?
-  title               String
-  description         String?
-  status              IssueStatus   @default(OPEN)
-  priority            IssuePriority @default(MEDIUM)
-  assigneeClerkUserId String?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  comments            Comment[]
-  auditIssue          AuditIssue?   @relation(fields: [auditIssueId], references: [id])
-  client              Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  url                 Urls?         @relation(fields: [urlId], references: [id])
-
-  @@index([clientId])
-  @@index([urlId])
-  @@index([auditIssueId])
-}
-
-model Comment {
-  id                Int      @id @default(autoincrement())
-  taskId            Int
-  authorClerkUserId String
-  content           String
-  createdAt         DateTime @default(now())
-  task              Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId])
+  @@index([status])
 }
 
 model InternalLink {
@@ -342,24 +371,54 @@ model ClientInvite {
   createdAt DateTime   @default(now())
   expiresAt DateTime
   inviterId String
-  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  Client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([token])
 }
 
-enum IssueStatus {
-  OPEN
-  IN_PROGRESS
-  FIXED
-  IGNORED
+model Comment {
+  id                Int      @id @default(autoincrement())
+  taskId            Int
+  authorClerkUserId String
+  content           String
+  createdAt         DateTime @default(now())
+  Task              Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
-enum IssuePriority {
-  CRITICAL
-  HIGH
-  MEDIUM
-  LOW
+model PageEmbedding {
+  id            Int                    @id @default(autoincrement())
+  urlId         Int                    @unique
+  contentVector Unsupported("vector")?
+  urlVector     Unsupported("vector")?
+  contentHash   String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime
+  Urls          Urls                   @relation(fields: [urlId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id                  Int           @id @default(autoincrement())
+  clientId            Int
+  urlId               Int?
+  auditIssueId        Int?
+  title               String
+  description         String?
+  status              IssueStatus   @default(OPEN)
+  priority            IssuePriority @default(MEDIUM)
+  assigneeClerkUserId String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime
+  Comment             Comment[]
+  AuditIssue          AuditIssue?   @relation(fields: [auditIssueId], references: [id])
+  Client              Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  Urls                Urls?         @relation(fields: [urlId], references: [id])
+
+  @@index([auditIssueId])
+  @@index([clientId])
+  @@index([urlId])
 }
 
 enum GlobalRole {
@@ -380,4 +439,18 @@ enum CrawlState {
   STARTED
   ABORTED
   COMPLETED
+}
+
+enum IssuePriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  FIXED
+  IGNORED
 }

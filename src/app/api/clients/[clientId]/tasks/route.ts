@@ -65,12 +65,12 @@ export async function GET(
       prisma.task.findMany({
         where: whereClause,
         include: {
-          url: {
+          Urls: {
             select: {
               url: true
             }
           },
-          auditIssue: {
+          AuditIssue: {
             select: {
               issueKey: true
             }
@@ -83,8 +83,16 @@ export async function GET(
       prisma.task.count({ where: whereClause })
     ]);
 
+    const formattedTasks = tasks.map((t) => ({
+      ...t,
+      url: t.Urls,
+      Urls: undefined,
+      auditIssue: t.AuditIssue,
+      AuditIssue: undefined
+    }));
+
     return NextResponse.json({
-      tasks,
+      tasks: formattedTasks,
       totalCount,
       page,
       perPage
@@ -205,7 +213,8 @@ export async function POST(
         priority: priority || 'MEDIUM',
         assigneeClerkUserId,
         urlId: urlId ? parseInt(urlId) : undefined,
-        auditIssueId: auditIssueId ? parseInt(auditIssueId) : undefined
+        auditIssueId: auditIssueId ? parseInt(auditIssueId) : undefined,
+        updatedAt: new Date()
       }
     });
 

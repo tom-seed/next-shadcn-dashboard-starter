@@ -15,14 +15,17 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 interface DataTablePaginationProps<TData> extends React.ComponentProps<'div'> {
   table: Table<TData>;
   pageSizeOptions?: number[];
+  totalItems?: number;
 }
 
 export function DataTablePagination<TData>({
   table,
   pageSizeOptions = [10, 20, 30, 40, 50],
+  totalItems,
   className,
   ...props
 }: DataTablePaginationProps<TData>) {
+  const displayTotal = totalItems ?? table.getFilteredRowModel().rows.length;
   return (
     <div
       className={cn(
@@ -34,11 +37,11 @@ export function DataTablePagination<TData>({
       <div className='text-muted-foreground flex-1 text-sm whitespace-nowrap'>
         {table.getFilteredSelectedRowModel().rows.length > 0 ? (
           <>
-            {table.getFilteredSelectedRowModel().rows.length} of{' '}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
+            {table.getFilteredSelectedRowModel().rows.length} of {displayTotal}{' '}
+            row(s) selected.
           </>
         ) : (
-          <>{table.getFilteredRowModel().rows.length} row(s) total.</>
+          <>{displayTotal} row(s) total.</>
         )}
       </div>
       <div className='flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8'>

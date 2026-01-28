@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Urls } from '@prisma/client';
 import { UrlTable } from './table';
 import { getUrlColumns } from './columns';
@@ -10,10 +10,14 @@ import {
   parseAsString,
   createParser
 } from 'nuqs';
-import { ColumnFiltersState, SortingState } from '@tanstack/react-table';
+import {
+  ColumnFiltersState,
+  PaginationState,
+  SortingState
+} from '@tanstack/react-table';
 import { toast } from 'sonner';
 
-// ✅ Custom parser using `createParser` to enable `withDefault`
+// Sort param stored as comma-separated "field:direction" entries
 const parseSortParam = createParser<string[]>({
   parse: (value): string[] => {
     if (Array.isArray(value))
@@ -26,14 +30,14 @@ const parseSortParam = createParser<string[]>({
     }
     return [];
   },
-  serialize: (value: string[]): string => value.join(',') // Stored as comma-separated in URL
+  serialize: (value: string[]): string => value.join(',')
 });
 
 const searchParamDefs = {
   page: parseAsInteger.withDefault(1),
   perPage: parseAsInteger.withDefault(10),
 
-  // Filters for each column
+  // Filters
   url: parseAsString.withDefault(''),
   metaTitle: parseAsString.withDefault(''),
   metaDescription: parseAsString.withDefault(''),
@@ -41,27 +45,11 @@ const searchParamDefs = {
   h1: parseAsString.withDefault(''),
   status: parseAsString.withDefault(''),
 
-  // Multi-sort
+  // Sort
   sort: parseSortParam.withDefault([])
 };
 
-const sortingStatesEqual = (a: SortingState, b: SortingState) =>
-  a.length === b.length &&
-  a.every((item, index) => {
-    const other = b[index];
-    return other?.id === item.id && other?.desc === item.desc;
-  });
-
-const columnFiltersEqual = (a: ColumnFiltersState, b: ColumnFiltersState) =>
-  a.length === b.length &&
-  a.every((item, index) => {
-    const other = b[index];
-    return (
-      other?.id === item.id &&
-      JSON.stringify(other?.value) === JSON.stringify(item.value)
-    );
-  });
-
+// Convert URL sort params ("field:dir") to TanStack SortingState
 const parseSortingFromParams = (sort: string[]): SortingState =>
   sort
     .map((entry) => {
@@ -71,6 +59,29 @@ const parseSortingFromParams = (sort: string[]): SortingState =>
       return { id, desc: direction === 'desc' };
     })
     .filter(Boolean) as SortingState;
+
+// Convert URL filter params to TanStack ColumnFiltersState
+const parseFiltersFromParams = (params: {
+  url: string;
+  metaTitle: string;
+  metaDescription: string;
+  canonical: string;
+  h1: string;
+  status: string;
+}): ColumnFiltersState =>
+  (
+    [
+      params.url && { id: 'url', value: params.url },
+      params.metaTitle && { id: 'metaTitle', value: params.metaTitle },
+      params.metaDescription && {
+        id: 'metaDescription',
+        value: params.metaDescription
+      },
+      params.canonical && { id: 'canonical', value: params.canonical },
+      params.h1 && { id: 'h1', value: params.h1 },
+      params.status && { id: 'status', value: params.status }
+    ] as ColumnFiltersState
+  ).filter(Boolean);
 
 interface UrlListingPageClientProps {
   clientId: number;
@@ -88,56 +99,93 @@ export default function UrlListingPageClient({
   const activeRequestRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const [sortingState, setSortingState] = useState<SortingState>([]);
-  const [filtersState, setFiltersState] = useState<ColumnFiltersState>([]);
-
   const [searchParams, setSearchParams] = useQueryStates(searchParamDefs);
-  const sortParam = searchParams.sort;
-  const {
-    url: urlFilter,
-    metaTitle: metaTitleFilter,
-    metaDescription: metaDescriptionFilter,
-    canonical: canonicalFilter,
-    h1: h1Filter,
-    status: statusFilter
-  } = searchParams;
 
-  useEffect(() => {
-    const parsedSorting = parseSortingFromParams(sortParam);
-    setSortingState((prev) =>
-      sortingStatesEqual(prev, parsedSorting) ? prev : parsedSorting
-    );
-  }, [sortParam]);
+  // Derive TanStack state from URL params (single source of truth)
+  const sorting = parseSortingFromParams(searchParams.sort);
+  const columnFilters = parseFiltersFromParams(searchParams);
+  const pagination: PaginationState = useMemo(
+    () => ({
+      pageIndex: searchParams.page - 1,
+      pageSize: searchParams.perPage
+    }),
+    [searchParams.page, searchParams.perPage]
+  );
+  const pageCount = Math.ceil(totalItems / (searchParams.perPage || 1)) || 1;
 
-  useEffect(() => {
-    const nextFilters = (
-      [
-        urlFilter && { id: 'url', value: urlFilter },
-        metaTitleFilter && { id: 'metaTitle', value: metaTitleFilter },
-        metaDescriptionFilter && {
-          id: 'metaDescription',
-          value: metaDescriptionFilter
-        },
-        canonicalFilter && { id: 'canonical', value: canonicalFilter },
-        h1Filter && { id: 'h1', value: h1Filter },
-        statusFilter && { id: 'status', value: statusFilter }
-      ].filter(Boolean) as ColumnFiltersState
-    ).map((filter) => ({ ...filter }));
+  // --- Handlers: update URL params, which triggers re-fetch ---
 
-    setFiltersState((prev) =>
-      columnFiltersEqual(prev, nextFilters) ? prev : nextFilters
-    );
-  }, [
-    urlFilter,
-    metaTitleFilter,
-    metaDescriptionFilter,
-    canonicalFilter,
-    h1Filter,
-    statusFilter
-  ]);
+  const handleSortingChange = useCallback(
+    (updater: SortingState | ((old: SortingState) => SortingState)) => {
+      const nextSort =
+        typeof updater === 'function' ? updater(sorting) : updater;
+      const sortParams = nextSort.map(
+        (s): string => `${s.id}:${s.desc ? 'desc' : 'asc'}`
+      );
+      void setSearchParams((prev) => ({
+        ...prev,
+        sort: sortParams,
+        page: 1
+      }));
+    },
+    [sorting, setSearchParams]
+  );
 
-  // Server-side pagination with filters and sorting.
-  // Future plan: implement Redis caching to improve performance.
+  const handleColumnFiltersChange = useCallback(
+    (
+      updater:
+        | ColumnFiltersState
+        | ((old: ColumnFiltersState) => ColumnFiltersState)
+    ) => {
+      const nextFilters =
+        typeof updater === 'function' ? updater(columnFilters) : updater;
+
+      const filterMap = Object.fromEntries(
+        nextFilters.map((f) => [f.id, f.value])
+      );
+
+      // Detect removed filters to clear them
+      const removedFilters = columnFilters
+        .filter(
+          (prevFilter) =>
+            !nextFilters.some((filter) => filter.id === prevFilter.id)
+        )
+        .map((filter) => filter.id);
+
+      void setSearchParams((prev) => {
+        const next = { ...prev, page: 1 } as typeof prev;
+
+        Object.entries(filterMap).forEach(([key, value]) => {
+          next[key as keyof typeof next] = value as never;
+        });
+
+        removedFilters.forEach((key) => {
+          next[key as keyof typeof next] = '' as never;
+        });
+
+        return next;
+      });
+    },
+    [columnFilters, setSearchParams]
+  );
+
+  const handlePaginationChange = useCallback(
+    (
+      updater: PaginationState | ((old: PaginationState) => PaginationState)
+    ) => {
+      const next =
+        typeof updater === 'function' ? updater(pagination) : updater;
+      void setSearchParams((prev) => ({
+        ...prev,
+        page: next.pageIndex + 1,
+        perPage: next.pageSize
+      }));
+    },
+    [pagination, setSearchParams]
+  );
+
+  // --- Data fetching: reads URL params, builds API query ---
+
   const rawFetchData = useCallback(async () => {
     const {
       page,
@@ -224,57 +272,14 @@ export default function UrlListingPageClient({
       data={urls}
       totalItems={totalItems}
       columns={columns}
-      initialPage={searchParams.page}
-      initialPerPage={searchParams.perPage}
+      pageCount={pageCount}
+      pagination={pagination}
+      sorting={sorting}
+      columnFilters={columnFilters}
+      onPaginationChange={handlePaginationChange}
+      onSortingChange={handleSortingChange}
+      onColumnFiltersChange={handleColumnFiltersChange}
       isLoading={isFetching}
-      onSortingChange={(updater) => {
-        const nextSort =
-          typeof updater === 'function'
-            ? (updater as (old: SortingState) => SortingState)(sortingState)
-            : updater;
-        setSortingState(nextSort);
-        const sortParams = nextSort.map(
-          (s): string => `${s.id}:${s.desc ? 'desc' : 'asc'}`
-        );
-        void setSearchParams((prev) => ({
-          ...prev,
-          sort: sortParams,
-          page: 1
-        }));
-      }}
-      onColumnFiltersChange={(updater) => {
-        const nextFilters =
-          typeof updater === 'function'
-            ? (updater as (old: ColumnFiltersState) => ColumnFiltersState)(
-                filtersState
-              )
-            : updater;
-        setFiltersState(nextFilters);
-        const filterMap = Object.fromEntries(
-          nextFilters.map((f) => [f.id, f.value])
-        );
-
-        const removedFilters = filtersState
-          .filter(
-            (prevFilter) =>
-              !nextFilters.some((filter) => filter.id === prevFilter.id)
-          )
-          .map((filter) => filter.id);
-
-        void setSearchParams((prev) => {
-          const next = { ...prev, page: 1 } as typeof prev;
-
-          Object.entries(filterMap).forEach(([key, value]) => {
-            next[key as keyof typeof next] = value as never;
-          });
-
-          removedFilters.forEach((key) => {
-            next[key as keyof typeof next] = '' as never;
-          });
-
-          return next;
-        });
-      }}
     />
   );
 }

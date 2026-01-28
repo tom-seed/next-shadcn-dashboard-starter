@@ -5,23 +5,27 @@ import {
   SortingState,
   ColumnFiltersState,
   OnChangeFn,
-  ColumnResizeMode,
-  ColumnResizeDirection
+  getCoreRowModel,
+  getFacetedRowModel,
+  getFacetedUniqueValues,
+  getFilteredRowModel,
+  useReactTable
 } from '@tanstack/react-table';
-import { parseAsInteger, useQueryState } from 'nuqs';
-import { useDataTable } from '@/hooks/use-data-table';
 import { DataTable } from '@/components/ui/table/data-table';
 import { DataTableToolbar } from '@/components/ui/table/data-table-toolbar';
-import { useState, useReducer } from 'react';
+import { useState } from 'react';
 
 interface UrlTableProps<TData, TValue> {
   data: TData[];
   totalItems: number;
   columns: ColumnDef<TData, TValue>[];
-  initialPage: number;
-  initialPerPage: number;
-  onSortingChange?: OnChangeFn<SortingState>;
-  onColumnFiltersChange?: OnChangeFn<ColumnFiltersState>;
+  pageCount: number;
+  pagination: { pageIndex: number; pageSize: number };
+  sorting: SortingState;
+  columnFilters: ColumnFiltersState;
+  onPaginationChange: OnChangeFn<{ pageIndex: number; pageSize: number }>;
+  onSortingChange: OnChangeFn<SortingState>;
+  onColumnFiltersChange: OnChangeFn<ColumnFiltersState>;
   isLoading?: boolean;
 }
 
@@ -29,18 +33,15 @@ export function UrlTable<TData, TValue>({
   data,
   totalItems,
   columns,
-  initialPage,
-  initialPerPage,
+  pageCount,
+  pagination,
+  sorting,
+  columnFilters,
+  onPaginationChange,
   onSortingChange,
   onColumnFiltersChange,
   isLoading = false
 }: UrlTableProps<TData, TValue>) {
-  const [perPage] = useQueryState(
-    'perPage',
-    parseAsInteger.withDefault(initialPerPage)
-  );
-  const pageCount = Math.ceil(totalItems / (perPage || 1)) || 1;
-
   const [columnVisibility, setColumnVisibility] = useState({});
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({
     url: 420,
@@ -49,43 +50,39 @@ export function UrlTable<TData, TValue>({
     canonical: 360,
     status: 120
   });
-  const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const [columnResizeMode, setColumnResizeMode] =
-    useState<ColumnResizeMode>('onChange');
-  const [columnResizeDirection, setColumnResizeDirection] =
-    useState<ColumnResizeDirection>('ltr');
 
-  const rerender = useReducer(() => ({}), {})[1];
-
-  const { table } = useDataTable({
+  const table = useReactTable({
     data,
     columns,
     pageCount,
-    initialState: {
-      pagination: {
-        pageIndex: initialPage - 1,
-        pageSize: initialPerPage
-      },
+    state: {
+      pagination,
+      sorting,
+      columnFilters,
       columnVisibility,
-      columnSizing,
-      columnOrder
+      columnSizing
     },
-    shallow: false,
-    debounceMs: 500,
-    enableSorting: true,
-    enableMultiSort: true,
-    enableColumnFilters: true,
-    columnResizeMode,
-    columnResizeDirection,
+    onPaginationChange,
     onSortingChange,
     onColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
-    onColumnOrderChange: setColumnOrder
+    columnResizeMode: 'onChange',
+    columnResizeDirection: 'ltr',
+    enableSorting: true,
+    enableMultiSort: true,
+    enableColumnFilters: true,
+    manualPagination: true,
+    manualSorting: true,
+    manualFiltering: true,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFacetedUniqueValues: getFacetedUniqueValues()
   });
 
   return (
-    <DataTable table={table} aria-busy={isLoading}>
+    <DataTable table={table} totalItems={totalItems} aria-busy={isLoading}>
       <DataTableToolbar table={table} />
     </DataTable>
   );

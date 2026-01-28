@@ -37,12 +37,12 @@ export default async function Page({ params }: PageProps) {
       clientId: id
     },
     include: {
-      url: {
+      Urls: {
         select: {
           url: true
         }
       },
-      auditIssue: {
+      AuditIssue: {
         select: {
           issueKey: true
         }
@@ -62,8 +62,8 @@ export default async function Page({ params }: PageProps) {
     // Ensure nullable fields are handled
     description: task.description,
     assigneeClerkUserId: task.assigneeClerkUserId,
-    url: task.url,
-    auditIssue: task.auditIssue
+    url: task.Urls,
+    auditIssue: task.AuditIssue
   };
 
   return (

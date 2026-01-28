@@ -107,6 +107,37 @@ export default function AppSidebar() {
         items: []
       },
       {
+        title: 'Embeddings',
+        url: '#',
+        icon: 'ai',
+        items: [
+          {
+            title: 'Topic Clusters',
+            url: `${base}/embeddings/clusters`,
+            icon: 'ai',
+            items: []
+          },
+          {
+            title: 'Link Suggestions',
+            url: `${base}/embeddings/suggestions`,
+            icon: 'link',
+            items: []
+          },
+          {
+            title: 'Content Similarity',
+            url: `${base}/embeddings/content-similarity`,
+            icon: 'page',
+            items: []
+          },
+          {
+            title: 'Cannibalisation',
+            url: `${base}/embeddings/cannibalisation`,
+            icon: 'warning',
+            items: []
+          }
+        ]
+      },
+      {
         title: 'AtlasAi',
         url: `#`,
         icon: 'robot',

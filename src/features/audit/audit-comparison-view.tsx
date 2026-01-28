@@ -38,8 +38,8 @@ export default function AuditComparisonView({ clientId }: Props) {
     );
 
   const renderRow = (label: string, key: string, link?: string) => {
-    const latestVal = latest?.[key] ?? 0;
-    const previousVal = previous?.[key] ?? 0;
+    const latestVal = latest?.semantic?.[key] ?? latest?.[key] ?? 0;
+    const previousVal = previous?.semantic?.[key] ?? previous?.[key] ?? 0;
     const diff = latestVal - previousVal;
 
     const delta =

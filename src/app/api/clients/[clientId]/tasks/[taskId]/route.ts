@@ -35,17 +35,17 @@ export async function GET(
         clientId: id
       },
       include: {
-        comments: {
+        Comment: {
           orderBy: {
             createdAt: 'asc'
           }
         },
-        url: {
+        Urls: {
           select: {
             url: true
           }
         },
-        auditIssue: {
+        AuditIssue: {
           select: {
             issueKey: true
           }
