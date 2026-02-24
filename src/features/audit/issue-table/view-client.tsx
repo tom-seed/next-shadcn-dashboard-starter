@@ -3,8 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { TaskCreateDialog } from '@/features/tasks/task-create-dialog';
-import { Download } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Download, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useQueryStates,
@@ -21,40 +20,8 @@ import {
   SortingState,
   ColumnFiltersState
 } from '@tanstack/react-table';
-import {
-  TitlesTooLong,
-  TitlesTooShort,
-  TitlesMissing
-} from '../issue-descriptions/titles';
-import {
-  DescriptionsTooLong,
-  DescriptionsTooShort,
-  DescriptionsMissing
-} from '../issue-descriptions/descriptions';
-import {
-  Heading1Missing,
-  Heading2Missing,
-  Heading3Missing,
-  Heading4Missing,
-  Heading5Missing,
-  Heading6Missing,
-  Heading1Multiple,
-  Heading2Multiple,
-  Heading3Multiple,
-  Heading4Multiple,
-  Heading5Multiple,
-  Heading6Multiple,
-  Heading1Duplicate,
-  Heading2Duplicate,
-  Heading3Duplicate,
-  Heading4Duplicate,
-  Heading5Duplicate,
-  Heading6Duplicate
-} from '../issue-descriptions/headings';
-import {
-  MissingCanonical,
-  Canonicalised
-} from '../issue-descriptions/canonicals';
+import { toast } from 'sonner';
+import { ISSUE_DESCRIPTION_MAP, getIssueByField } from '../lib/issue-registry';
 
 const parseSortParam = createParser<string[]>({
   parse: (value): string[] => {
@@ -84,6 +51,7 @@ export default function AuditIssueViewClient({
   const [data, setData] = useState<AuditIssueRow[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [isExporting, setIsExporting] = useState(false);
 
   const [searchParams, setSearchParams] = useQueryStates(searchParamDefs);
 
@@ -101,24 +69,37 @@ export default function AuditIssueViewClient({
     );
     const result = await res.json();
 
+    const isVirtual = result.isVirtual ?? false;
     const urls: AuditIssueRow[] = Array.isArray(result.issues)
       ? result.issues
-          .map((issue: any) => ({
-            id: Number(issue.id),
-            url:
-              typeof issue.url === 'string'
-                ? issue.url
-                : String(issue.url?.url ?? ''),
-            urlId:
-              issue.urlId ??
-              issue.url_id ??
-              issue.urlIdFromJoin ??
-              issue.url?.id ??
-              undefined,
-            clientId,
-            status: issue.status,
-            priority: issue.priority
-          }))
+          .map(
+            (issue: {
+              id: number;
+              url: string | { url?: string; id?: number };
+              urlId?: number;
+              url_id?: number;
+              urlIdFromJoin?: number;
+              status?: string;
+              priority?: string;
+              isVirtual?: boolean;
+            }) => ({
+              id: Number(issue.id),
+              url:
+                typeof issue.url === 'string'
+                  ? issue.url
+                  : String(issue.url?.url ?? ''),
+              urlId:
+                issue.urlId ??
+                issue.url_id ??
+                issue.urlIdFromJoin ??
+                (typeof issue.url === 'object' ? issue.url?.id : undefined),
+              clientId,
+              issueKey,
+              status: issue.status as AuditIssueRow['status'],
+              priority: issue.priority as AuditIssueRow['priority'],
+              isVirtual: issue.isVirtual ?? isVirtual
+            })
+          )
           .filter((row: AuditIssueRow) => !!row.url)
       : [];
 
@@ -132,6 +113,7 @@ export default function AuditIssueViewClient({
     startTransition(() => {
       fetchData();
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, clientId, issueKey]);
 
   const resolveUpdater = <T,>(updater: Updater<T>, previous: T): T =>
@@ -154,154 +136,180 @@ export default function AuditIssueViewClient({
   };
 
   const exportCsv = async () => {
-    // Fetch ALL rows for this issue (bypass pagination)
-    const query = new URLSearchParams({
-      page: '1',
-      perPage: '100000',
-      url: searchParams.url || ''
-    });
+    setIsExporting(true);
+    try {
+      const query = new URLSearchParams({
+        page: '1',
+        perPage: '100000',
+        url: searchParams.url || ''
+      });
 
-    const res = await fetch(
-      `/api/clients/${clientId}/audits/issues/${issueKey}?${query.toString()}`,
-      { cache: 'no-store' }
-    );
-    if (!res.ok) return;
-    const result = await res.json();
-    const rows: { id: number; url: string }[] = Array.isArray(result.issues)
-      ? result.issues
-      : [];
-    const csv = rowsToCsv(rows);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const urlObj = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = urlObj;
-    a.download = `${issueKey}-urls.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(urlObj);
+      const res = await fetch(
+        `/api/clients/${clientId}/audits/issues/${issueKey}?${query.toString()}`,
+        { cache: 'no-store' }
+      );
+      if (!res.ok) {
+        toast.error('Failed to export CSV');
+        return;
+      }
+      const result = await res.json();
+      const rows: { id: number; url: string }[] = Array.isArray(result.issues)
+        ? result.issues
+        : [];
+      const csv = rowsToCsv(rows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const urlObj = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = urlObj;
+      a.download = `${issueKey}-urls.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(urlObj);
+      toast.success(`Exported ${rows.length} URLs`);
+    } catch {
+      toast.error('Failed to export CSV');
+    } finally {
+      setIsExporting(false);
+    }
   };
+
+  // --- Registry lookup ---
+  const issue = getIssueByField(issueKey);
+  const issueLabel =
+    issue?.label ??
+    issueKey
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  const DescComponent = ISSUE_DESCRIPTION_MAP[issueKey];
 
   return (
     <div className='flex min-h-[calc(100vh-20rem)] flex-col space-y-4 p-4'>
+      {/* Header */}
       <div className='flex items-center justify-between'>
-        <h1 className='text-2xl font-bold'>
-          {issueKey
-            .split('_')
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ')}
-        </h1>
+        <h1 className='text-2xl font-bold'>{issueLabel}</h1>
         <TaskCreateDialog
           clientId={clientId}
-          defaultTitle={`Fix ${issueKey.split('_').join(' ')}`}
+          defaultTitle={`Fix ${issueLabel.toLowerCase()}`}
         />
       </div>
 
-      <Tabs defaultValue='overview' className='flex w-full flex-1 flex-col'>
-        <TabsList>
-          <TabsTrigger value='overview'>Overview</TabsTrigger>
-          <TabsTrigger value='fix-tasks'>Fix Tasks</TabsTrigger>
-        </TabsList>
+      {/* Stats + Description row */}
+      <div className='grid gap-4 md:grid-cols-3'>
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Affected URLs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{totalItems}</div>
+            <p className='text-muted-foreground text-xs'>
+              Pages requiring attention
+            </p>
+          </CardContent>
+        </Card>
 
-        <TabsContent value='overview' className='space-y-4'>
-          <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-            <Card>
-              <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-                <CardTitle className='text-sm font-medium'>
-                  Total Affected URLs
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className='text-2xl font-bold'>{totalItems}</div>
-                <p className='text-muted-foreground text-xs'>
-                  Pages requiring attention
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
+        {issue && (
           <Card>
-            <CardHeader>
-              <CardTitle>Issue Description</CardTitle>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium'>Severity</CardTitle>
             </CardHeader>
             <CardContent>
-              {issueKey === 'too_long_title_urls' && <TitlesTooLong />}
-              {issueKey === 'too_short_title' && <TitlesTooShort />}
-              {issueKey === 'pages_missing_title' && <TitlesMissing />}
-              {issueKey === 'too_long_description' && <DescriptionsTooLong />}
-              {issueKey === 'too_short_description' && <DescriptionsTooShort />}
-              {issueKey === 'pages_missing_description' && (
-                <DescriptionsMissing />
-              )}
-              {issueKey === 'pages_missing_h1' && <Heading1Missing />}
-              {issueKey === 'pages_missing_h2' && <Heading2Missing />}
-              {issueKey === 'pages_missing_h3' && <Heading3Missing />}
-              {issueKey === 'pages_missing_h4' && <Heading4Missing />}
-              {issueKey === 'pages_missing_h5' && <Heading5Missing />}
-              {issueKey === 'pages_missing_h6' && <Heading6Missing />}
-              {issueKey === 'pages_with_multiple_h1s' && <Heading1Multiple />}
-              {issueKey === 'pages_with_multiple_h2s' && <Heading2Multiple />}
-              {issueKey === 'pages_with_multiple_h3s' && <Heading3Multiple />}
-              {issueKey === 'pages_with_multiple_h4s' && <Heading4Multiple />}
-              {issueKey === 'pages_with_multiple_h5s' && <Heading5Multiple />}
-              {issueKey === 'pages_with_multiple_h6s' && <Heading6Multiple />}
-              {issueKey === 'pages_with_duplicate_h1s' && <Heading1Duplicate />}
-              {issueKey === 'pages_with_duplicate_h2s' && <Heading2Duplicate />}
-              {issueKey === 'pages_with_duplicate_h3s' && <Heading3Duplicate />}
-              {issueKey === 'pages_with_duplicate_h4s' && <Heading4Duplicate />}
-              {issueKey === 'pages_with_duplicate_h5s' && <Heading5Duplicate />}
-              {issueKey === 'pages_with_duplicate_h6s' && <Heading6Duplicate />}
-              {issueKey === 'pages_missing_canonical' && <MissingCanonical />}
-              {issueKey === 'pages_canonicalised' && <Canonicalised />}
+              <div className='flex items-center gap-2'>
+                <div
+                  className={`h-2.5 w-2.5 rounded-full ${
+                    issue.severity === 'critical'
+                      ? 'bg-red-500'
+                      : issue.severity === 'warning'
+                        ? 'bg-amber-500'
+                        : issue.severity === 'opportunity'
+                          ? 'bg-sky-500'
+                          : 'bg-slate-400'
+                  }`}
+                />
+                <span className='text-2xl font-bold capitalize'>
+                  {issue.severity}
+                </span>
+              </div>
+              <p className='text-muted-foreground text-xs'>
+                {issue.severity === 'critical'
+                  ? 'Requires immediate attention'
+                  : issue.severity === 'warning'
+                    ? 'Should be addressed soon'
+                    : issue.severity === 'opportunity'
+                      ? 'Improvement opportunity'
+                      : 'For your information'}
+              </p>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent
-          value='fix-tasks'
-          className='flex h-full flex-1 flex-col space-y-4'
+        {DescComponent && (
+          <Card>
+            <CardHeader>
+              <CardTitle className='text-sm font-medium'>
+                About This Issue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DescComponent />
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Export + Table */}
+      <div className='flex justify-end'>
+        <Button
+          variant='outline'
+          size='sm'
+          onClick={exportCsv}
+          disabled={isExporting}
+          className='gap-2'
         >
-          <div className='flex justify-end'>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={exportCsv}
-              className='gap-2'
-            >
+          {isExporting ? (
+            <>
+              <Loader2 className='h-4 w-4 animate-spin' /> Exporting...
+            </>
+          ) : (
+            <>
               <Download className='h-4 w-4' /> Export CSV
-            </Button>
-          </div>
+            </>
+          )}
+        </Button>
+      </div>
 
-          <AuditIssueTable
-            data={data}
-            totalItems={totalItems}
-            columns={columns}
-            initialPage={searchParams.page}
-            initialPerPage={searchParams.perPage}
-            onSortingChange={(updater) => {
-              const nextSort = resolveUpdater<SortingState>(updater, []);
-              const sortParams = nextSort.map(
-                (s) => `${s.id}:${s.desc ? 'desc' : 'asc'}`
-              );
-              setSearchParams((prev) => ({
-                ...prev,
-                sort: sortParams,
-                page: 1
-              }));
-            }}
-            onColumnFiltersChange={(updater) => {
-              const nextFilters = resolveUpdater<ColumnFiltersState>(
-                updater,
-                []
-              );
-              const filterMap = Object.fromEntries(
-                nextFilters.map((f) => [f.id, f.value])
-              );
-              setSearchParams((prev) => ({ ...prev, ...filterMap, page: 1 }));
-            }}
-          />
-        </TabsContent>
-      </Tabs>
+      <div
+        className={
+          isPending ? 'pointer-events-none opacity-50 transition-opacity' : ''
+        }
+      >
+        <AuditIssueTable
+          data={data}
+          totalItems={totalItems}
+          columns={columns}
+          initialPage={searchParams.page}
+          initialPerPage={searchParams.perPage}
+          onSortingChange={(updater) => {
+            const nextSort = resolveUpdater<SortingState>(updater, []);
+            const sortParams = nextSort.map(
+              (s) => `${s.id}:${s.desc ? 'desc' : 'asc'}`
+            );
+            setSearchParams((prev) => ({
+              ...prev,
+              sort: sortParams,
+              page: 1
+            }));
+          }}
+          onColumnFiltersChange={(updater) => {
+            const nextFilters = resolveUpdater<ColumnFiltersState>(updater, []);
+            const filterMap = Object.fromEntries(
+              nextFilters.map((f) => [f.id, f.value])
+            );
+            setSearchParams((prev) => ({ ...prev, ...filterMap, page: 1 }));
+          }}
+        />
+      </div>
     </div>
   );
 }

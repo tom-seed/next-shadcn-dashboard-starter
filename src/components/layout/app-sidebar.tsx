@@ -107,6 +107,37 @@ export default function AppSidebar() {
         items: []
       },
       {
+        title: 'Reports',
+        url: '#',
+        icon: 'post',
+        items: [
+          {
+            title: 'SEO Health',
+            url: `${base}/reports/seo`,
+            icon: 'page',
+            items: []
+          },
+          {
+            title: 'Status Codes',
+            url: `${base}/reports/status-codes`,
+            icon: 'warning',
+            items: []
+          },
+          {
+            title: 'Links & Indexing',
+            url: `${base}/reports/links`,
+            icon: 'link',
+            items: []
+          },
+          {
+            title: 'Images',
+            url: `${base}/reports/images`,
+            icon: 'media',
+            items: []
+          }
+        ]
+      },
+      {
         title: 'Embeddings',
         url: '#',
         icon: 'ai',
@@ -215,11 +246,16 @@ export default function AppSidebar() {
               const Icon = Icons[item.icon] ?? Icons.logo;
               const isActive = pathname === item.url;
 
+              const hasActiveChild = item.items.some(
+                (sub) =>
+                  pathname === sub.url || pathname.startsWith(sub.url + '/')
+              );
+
               return item.items.length > 0 ? (
                 <Collapsible
                   key={item.title}
                   asChild
-                  defaultOpen={item.isActive}
+                  defaultOpen={item.isActive || hasActiveChild}
                   className='group/collapsible'
                 >
                   <SidebarMenuItem>

@@ -1,30 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import * as React from 'react';
 import { useParams } from 'next/navigation';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
 import {
+  ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-  ChartConfig
+  ChartTooltip,
+  ChartTooltipContent
 } from '@/components/ui/chart';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
 import {
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconTrendingDown,
-  IconTrendingUp
-} from '@tabler/icons-react';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 
 interface TrendPoint {
   date: string;
@@ -34,22 +34,21 @@ interface TrendPoint {
 
 const chartConfig = {
   pagesCrawled: {
-    label: 'Pages crawled',
-    color: 'var(--chart-1)',
-    icon: IconTrendingUp
+    label: 'Pages Crawled',
+    color: 'var(--chart-1)'
   },
   totalIssues: {
-    label: 'Total issues',
-    color: 'var(--chart-2)',
-    icon: IconAlertTriangle
+    label: 'Total Issues',
+    color: 'var(--chart-2)'
   }
 } satisfies ChartConfig;
 
 export function AuditProgressChart() {
   const { clientId } = useParams();
-  const [data, setData] = useState<TrendPoint[]>([]);
+  const [data, setData] = React.useState<TrendPoint[]>([]);
+  const [timeRange, setTimeRange] = React.useState('90d');
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!clientId) return;
 
     async function loadData() {
@@ -59,106 +58,162 @@ export function AuditProgressChart() {
         );
         if (!res.ok) return;
         const { data } = await res.json();
-        setData(
-          (data as TrendPoint[]).map((point) => ({
+        const sortedData = (data as TrendPoint[])
+          .map((point) => ({
             ...point,
             pagesCrawled: Number(point.pagesCrawled ?? 0),
             totalIssues: Number(point.totalIssues ?? 0)
           }))
-        );
-      } catch (error) {
-        // ignore; chart will remain empty
+          .sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+          );
+        setData(sortedData);
+      } catch {
+        // ignore
       }
     }
 
     void loadData();
   }, [clientId]);
 
-  const latestPoint = data.at(-1);
-  const previousPoint = data.length > 1 ? data[data.length - 2] : undefined;
-  const pagesDelta =
-    latestPoint && previousPoint
-      ? latestPoint.pagesCrawled - previousPoint.pagesCrawled
-      : 0;
-  const issuesDelta =
-    latestPoint && previousPoint
-      ? latestPoint.totalIssues - previousPoint.totalIssues
-      : 0;
-  const pagesTrendingUp = pagesDelta >= 0;
-  const issuesTrendingUp = issuesDelta >= 0;
+  const filteredData = React.useMemo(() => {
+    if (data.length === 0) return [];
 
-  const formatDelta = (value: number) =>
-    value > 0 ? `+${value}` : value < 0 ? value.toString() : '0';
+    const referenceDate = new Date();
+    let daysToSubtract = 90;
+    if (timeRange === '30d') {
+      daysToSubtract = 30;
+    } else if (timeRange === '7d') {
+      daysToSubtract = 7;
+    }
+
+    const startDate = new Date(referenceDate);
+    startDate.setDate(startDate.getDate() - daysToSubtract);
+
+    const inRange = data.filter((item) => new Date(item.date) >= startDate);
+    return inRange.length > 2 ? inRange : data;
+  }, [data, timeRange]);
 
   return (
-    <Card className='@container/card'>
-      <CardHeader>
-        <CardTitle>Progress over time</CardTitle>
-        <CardDescription>
-          Audits plotted by pages crawled vs. total issues discovered
-        </CardDescription>
+    <Card className='@container/card w-full'>
+      <CardHeader className='flex items-center gap-2 space-y-0 py-5 sm:flex-row'>
+        <div className='grid flex-1 gap-1'>
+          <CardTitle>Audit History</CardTitle>
+          <CardDescription>
+            Crawled pages vs total issues over time
+          </CardDescription>
+        </div>
+        <Select value={timeRange} onValueChange={setTimeRange}>
+          <SelectTrigger
+            className='w-[160px] rounded-lg sm:ml-auto'
+            aria-label='Select a value'
+          >
+            <SelectValue placeholder='Last 3 months' />
+          </SelectTrigger>
+          <SelectContent className='rounded-xl'>
+            <SelectItem value='90d' className='rounded-lg'>
+              Last 3 months
+            </SelectItem>
+            <SelectItem value='30d' className='rounded-lg'>
+              Last 30 days
+            </SelectItem>
+            <SelectItem value='7d' className='rounded-lg'>
+              Last 7 days
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </CardHeader>
       <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
-        <ChartContainer config={chartConfig} className='h-[220px] w-full'>
-          <AreaChart data={data} margin={{ left: 12, right: 12 }}>
+        <ChartContainer
+          config={chartConfig}
+          className='aspect-auto h-[250px] w-full'
+        >
+          <AreaChart data={filteredData} margin={{ left: 12, right: 12 }}>
+            <defs>
+              <linearGradient id='fillPages' x1='0' y1='0' x2='0' y2='1'>
+                <stop
+                  offset='5%'
+                  stopColor={chartConfig.pagesCrawled.color}
+                  stopOpacity={0.8}
+                />
+                <stop
+                  offset='95%'
+                  stopColor={chartConfig.pagesCrawled.color}
+                  stopOpacity={0.1}
+                />
+              </linearGradient>
+              <linearGradient id='fillIssues' x1='0' y1='0' x2='0' y2='1'>
+                <stop
+                  offset='5%'
+                  stopColor={chartConfig.totalIssues.color}
+                  stopOpacity={0.8}
+                />
+                <stop
+                  offset='95%'
+                  stopColor={chartConfig.totalIssues.color}
+                  stopOpacity={0.1}
+                />
+              </linearGradient>
+            </defs>
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey='date'
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value: string) => value.slice(5)}
+              minTickGap={32}
+              tickFormatter={(value) => {
+                const date = new Date(value);
+                return date.toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric'
+                });
+              }}
+            />
+            <YAxis
+              yAxisId='left'
+              orientation='left'
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              width={48}
+              tickFormatter={(value: number) =>
+                value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)
+              }
+            />
+            <YAxis
+              yAxisId='right'
+              orientation='right'
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              width={48}
+              tickFormatter={(value: number) =>
+                value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value)
+              }
             />
             <ChartTooltip
               cursor={false}
-              content={<ChartTooltipContent indicator='line' />}
+              content={<ChartTooltipContent indicator='dot' />}
             />
             <Area
-              dataKey='pagesCrawled'
-              type='natural'
-              fill='var(--color-pagesCrawled)'
-              fillOpacity={0.45}
-              stroke='var(--color-pagesCrawled)'
-              strokeWidth={2}
-              stackId='a'
-            />
-            <Area
+              yAxisId='right'
               dataKey='totalIssues'
               type='natural'
-              fill='var(--color-totalIssues)'
-              fillOpacity={0.45}
-              stroke='var(--color-totalIssues)'
-              strokeWidth={2}
-              stackId='a'
+              fill='url(#fillIssues)'
+              stroke={chartConfig.totalIssues.color}
+            />
+            <Area
+              yAxisId='left'
+              dataKey='pagesCrawled'
+              type='natural'
+              fill='url(#fillPages)'
+              stroke={chartConfig.pagesCrawled.color}
             />
             <ChartLegend content={<ChartLegendContent />} />
           </AreaChart>
         </ChartContainer>
       </CardContent>
-      <CardFooter className='flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm'>
-        <div className='text-muted-foreground flex items-center gap-2 font-medium'>
-          <span className='flex items-center gap-1'>
-            {pagesTrendingUp ? (
-              <IconTrendingUp className='h-4 w-4 text-emerald-500' />
-            ) : (
-              <IconTrendingDown className='h-4 w-4 text-red-500' />
-            )}
-            {pagesTrendingUp ? 'Pages up' : 'Pages down'}{' '}
-            {formatDelta(pagesDelta)} vs. previous audit
-          </span>
-        </div>
-        <div className='text-muted-foreground flex items-center gap-2'>
-          <span className='flex items-center gap-1'>
-            {issuesTrendingUp ? (
-              <IconAlertTriangle className='h-4 w-4 text-red-500' />
-            ) : (
-              <IconCircleCheck className='h-4 w-4 text-emerald-500' />
-            )}
-            {issuesTrendingUp ? 'Issues up' : 'Issues down'}{' '}
-            {formatDelta(issuesDelta)}
-          </span>
-        </div>
-      </CardFooter>
     </Card>
   );
 }

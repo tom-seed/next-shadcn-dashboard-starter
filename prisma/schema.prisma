@@ -65,12 +65,23 @@ model Crawl {
   contentChangesCurrent   ContentChange[]          @relation("CurrentCrawlChange")
   contentChangesPrevious  ContentChange[]          @relation("PreviousCrawlChange")
   client                  Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  crawlMeta               CrawlMeta?
   embeddingClusters       EmbeddingCluster[]
   hreflangLinks           HreflangLink[]
   images                  Image[]
   internalLinks           InternalLink[]
   internalLinkSuggestions InternalLinkSuggestion[]
   urls                    Urls[]
+}
+
+model CrawlMeta {
+  id              Int      @id @default(autoincrement())
+  crawlId         Int      @unique
+  robotsTxtRaw    String?
+  robotsTxtRules  Json?
+  sitemapUrls     String[]
+  createdAt       DateTime @default(now())
+  crawl           Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
 }
 
 model Urls {
@@ -98,6 +109,14 @@ model Urls {
   paginationNext             String?
   paginationPrev             String?
   originalStatus             Int?
+  wordCount                  Int?
+  metaRobots                 String?
+  isNoindex                  Boolean                  @default(false)
+  isNofollow                 Boolean                  @default(false)
+  hasSchemaMarkup            Boolean                  @default(false)
+  schemaTypes                String[]
+  responseTimeMs             Int?
+  depth                      Int?
   auditIssues                AuditIssue[]
   contentChanges             ContentChange[]
   clusterMembers             EmbeddingClusterMember[]
@@ -200,6 +219,24 @@ model Audit {
   total_images_unoptimized_format      Int          @default(0)
   pages_broken_link_recommendation     Int          @default(0)
   pages_content_similarity             Int          @default(0)
+  pages_thin_content                   Int          @default(0)
+  pages_noindex                        Int          @default(0)
+  pages_nofollow                       Int          @default(0)
+  pages_missing_schema                 Int          @default(0)
+  pages_with_schema                    Int          @default(0)
+  pages_slow_response                  Int          @default(0)
+  pages_with_mixed_content             Int          @default(0)
+  pages_deep                           Int          @default(0)
+  pages_duplicate_title                Int          @default(0)
+  pages_duplicate_description          Int          @default(0)
+  pages_in_redirect_chain              Int          @default(0)
+  pages_broken_pagination              Int          @default(0)
+  pages_blocked_by_robots              Int          @default(0)
+  pages_in_sitemap_not_crawled         Int          @default(0)
+  pages_not_in_sitemap                 Int          @default(0)
+  pages_in_sitemap_non_200             Int          @default(0)
+  pages_exact_duplicate_content        Int          @default(0)
+  pages_non_indexable                  Int          @default(0)
   client                               Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   crawl                                Crawl        @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   issues                               AuditIssue[]
@@ -207,13 +244,13 @@ model Audit {
 
 model ContentChange {
   id              Int      @id @default(autoincrement())
-  clientId        Int
   currentCrawlId  Int
   previousCrawlId Int
   urlId           Int
   changeType      String
   score           Float?
   createdAt       DateTime @default(now())
+  clientId        Int
   currentCrawl    Crawl    @relation("CurrentCrawlChange", fields: [currentCrawlId], references: [id], onDelete: Cascade)
   previousCrawl   Crawl    @relation("PreviousCrawlChange", fields: [previousCrawlId], references: [id], onDelete: Cascade)
   url             Urls     @relation(fields: [urlId], references: [id], onDelete: Cascade)
@@ -224,12 +261,12 @@ model ContentChange {
 
 model EmbeddingCluster {
   id        Int                      @id @default(autoincrement())
-  clientId  Int
   crawlId   Int
   label     String?
   density   Float?
   createdAt DateTime                 @default(now())
   updatedAt DateTime                 @updatedAt
+  clientId  Int
   crawl     Crawl                    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   members   EmbeddingClusterMember[]
 
@@ -252,13 +289,13 @@ model EmbeddingClusterMember {
 
 model InternalLinkSuggestion {
   id          Int      @id @default(autoincrement())
-  clientId    Int
   crawlId     Int
   sourceUrlId Int
   targetUrlId Int
   score       Float
   anchorText  String?
   createdAt   DateTime @default(now())
+  clientId    Int
   crawl       Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   sourceUrl   Urls     @relation("SourceUrlSuggestions", fields: [sourceUrlId], references: [id], onDelete: Cascade)
   targetUrl   Urls     @relation("TargetUrlSuggestions", fields: [targetUrlId], references: [id], onDelete: Cascade)

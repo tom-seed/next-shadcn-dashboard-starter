@@ -11,7 +11,6 @@ import { MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -29,13 +28,30 @@ export interface AuditIssueRow {
   url: string;
   urlId?: number;
   clientId: number;
-  status?: IssueStatus;
-  priority?: IssuePriority;
+  issueKey: string;
+  status?: IssueStatus | null;
+  priority?: IssuePriority | null;
+  isVirtual?: boolean;
 }
+
+const priorityColors: Record<IssuePriority, string> = {
+  CRITICAL: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  HIGH: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  MEDIUM:
+    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  LOW: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+};
+
+const statusColors: Record<IssueStatus, string> = {
+  OPEN: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+  IN_PROGRESS: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  FIXED: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  IGNORED: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+};
 
 export function getAuditIssueColumns(
   onUpdate?: () => void
-): ColumnDef<AuditIssueRow, any>[] {
+): ColumnDef<AuditIssueRow>[] {
   return [
     {
       accessorKey: 'url',
@@ -69,17 +85,14 @@ export function getAuditIssueColumns(
       ),
       cell: ({ row }) => {
         const priority = row.original.priority;
-        if (!priority) return <span className='text-muted-foreground'>-</span>;
+        const isVirtual = row.original.isVirtual;
 
-        const colors: Record<string, string> = {
-          CRITICAL: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-          HIGH: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-          MEDIUM:
-            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-          LOW: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        };
+        if (isVirtual || !priority) {
+          return <span className='text-muted-foreground'>-</span>;
+        }
+
         return (
-          <Badge className={colors[priority] || ''} variant='outline'>
+          <Badge className={priorityColors[priority] || ''} variant='outline'>
             {priority}
           </Badge>
         );
@@ -93,19 +106,14 @@ export function getAuditIssueColumns(
       ),
       cell: ({ row }) => {
         const status = row.original.status;
-        if (!status) return <span className='text-muted-foreground'>-</span>;
+        const isVirtual = row.original.isVirtual;
 
-        const colors: Record<string, string> = {
-          OPEN: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-          IN_PROGRESS:
-            'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-          FIXED:
-            'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-          IGNORED:
-            'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
-        };
+        if (isVirtual || !status) {
+          return <span className='text-muted-foreground'>-</span>;
+        }
+
         return (
-          <Badge className={colors[status] || ''} variant='outline'>
+          <Badge className={statusColors[status] || ''} variant='outline'>
             {status.replace('_', ' ')}
           </Badge>
         );
@@ -116,39 +124,42 @@ export function getAuditIssueColumns(
       id: 'actions',
       header: () => null,
       cell: ({ row }) => {
-        const task = row.original;
+        const issue = row.original;
+        const isVirtual = issue.isVirtual;
 
-        // Only show actions if it's a real task (has status/priority)
-        if (!task.status) {
-          return <UrlCellAction clientId={task.clientId} urlId={task.urlId} />;
+        // Only show URL action for virtual issues (no status management)
+        if (isVirtual || !issue.status) {
+          return (
+            <UrlCellAction clientId={issue.clientId} urlId={issue.urlId} />
+          );
         }
 
-        const updateTask = async (updates: {
+        const updateIssue = async (updates: {
           status?: IssueStatus;
           priority?: IssuePriority;
         }) => {
           try {
-            const res = await fetch(`/api/clients/${task.clientId}/tasks`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                ids: [task.id],
-                ...updates
-              })
-            });
+            const res = await fetch(
+              `/api/clients/${issue.clientId}/audits/issues/${issue.issueKey}`,
+              {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates)
+              }
+            );
 
             if (!res.ok) throw new Error('Failed to update');
 
-            toast.success('Task updated');
+            toast.success('Issue updated');
             if (onUpdate) onUpdate();
-          } catch (error) {
-            toast.error('Failed to update task');
+          } catch {
+            toast.error('Failed to update issue');
           }
         };
 
         return (
           <div className='flex items-center gap-2'>
-            <UrlCellAction clientId={task.clientId} urlId={task.urlId} />
+            <UrlCellAction clientId={issue.clientId} urlId={issue.urlId} />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant='ghost' className='h-8 w-8 p-0'>
@@ -157,16 +168,16 @@ export function getAuditIssueColumns(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align='end'>
-                <DropdownMenuLabel>Task Actions</DropdownMenuLabel>
+                <DropdownMenuLabel>Issue Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Set Status</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     <DropdownMenuRadioGroup
-                      value={task.status}
+                      value={issue.status ?? undefined}
                       onValueChange={(val) =>
-                        updateTask({ status: val as IssueStatus })
+                        updateIssue({ status: val as IssueStatus })
                       }
                     >
                       <DropdownMenuRadioItem value='OPEN'>
@@ -189,9 +200,9 @@ export function getAuditIssueColumns(
                   <DropdownMenuSubTrigger>Set Priority</DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
                     <DropdownMenuRadioGroup
-                      value={task.priority}
+                      value={issue.priority ?? undefined}
                       onValueChange={(val) =>
-                        updateTask({ priority: val as IssuePriority })
+                        updateIssue({ priority: val as IssuePriority })
                       }
                     >
                       <DropdownMenuRadioItem value='CRITICAL'>

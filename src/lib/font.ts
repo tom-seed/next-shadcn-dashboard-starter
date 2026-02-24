@@ -1,4 +1,4 @@
-import { Geist_Mono, Manrope, Noto_Sans_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Noto_Sans_Mono } from 'next/font/google';
 
 import { cn } from '@/lib/utils';
 
@@ -7,9 +7,9 @@ const fontMono = Geist_Mono({
   variable: '--font-mono'
 });
 
-const fontSans = Manrope({
+const fontSans = Geist({
   subsets: ['latin'],
-  variable: '--font-manrope'
+  variable: '--font-sans'
 });
 
 const fontNotoMono = Noto_Sans_Mono({

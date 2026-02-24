@@ -211,26 +211,46 @@ export async function GET(
       totalCount = count;
     }
 
-    const formattedIssues = issues.map((issue) => ({
-      id: issue.id,
-      urlId: issue.url?.id ?? null,
-      url: issue.url?.url ?? '(URL missing)',
-      metadata: issue.metadata ?? null,
-      // @ts-ignore - these fields exist on AuditIssue but not on the mapped Url/Image objects
-      status: issue.status ?? 'OPEN',
-      // @ts-ignore
-      priority: issue.priority ?? 'MEDIUM',
-      // @ts-ignore
-      fixedAt: issue.fixedAt ?? null,
-      // @ts-ignore
-      ignoredAt: issue.ignoredAt ?? null
-    }));
+    // Check if this is a virtual issue (status codes, image issues)
+    const isVirtual =
+      [
+        'pages_3xx_response',
+        'pages_4xx_response',
+        'pages_5xx_response'
+      ].includes(issueKey) ||
+      issueKey.startsWith('total_images_') ||
+      issueKey.startsWith('pages_with_images_');
+
+    const formattedIssues = issues.map((issue) => {
+      const typedIssue = issue as {
+        id: number;
+        url: { id: number; url: string } | null;
+        metadata?: unknown;
+        status?: string;
+        priority?: string;
+        fixedAt?: Date | null;
+        ignoredAt?: Date | null;
+      };
+
+      return {
+        id: typedIssue.id,
+        urlId: typedIssue.url?.id ?? null,
+        url: typedIssue.url?.url ?? '(URL missing)',
+        metadata: typedIssue.metadata ?? null,
+        status: isVirtual ? null : (typedIssue.status ?? 'OPEN'),
+        priority: isVirtual ? null : (typedIssue.priority ?? 'MEDIUM'),
+        fixedAt: isVirtual ? null : (typedIssue.fixedAt ?? null),
+        ignoredAt: isVirtual ? null : (typedIssue.ignoredAt ?? null),
+        isVirtual
+      };
+    });
 
     return NextResponse.json({
       issues: formattedIssues,
       totalCount,
       page,
-      perPage: perPage ?? totalCount
+      perPage: perPage ?? totalCount,
+      isVirtual
     });
   } catch (err) {
     console.error(err);

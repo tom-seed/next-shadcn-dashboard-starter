@@ -11,7 +11,6 @@ import {
   Cell
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTheme } from 'next-themes';
 
 interface ClusterChartProps {
   data: {
@@ -25,14 +24,6 @@ interface ClusterChartProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function ClusterChart({ data }: ClusterChartProps) {
-  // const { theme } = useTheme();
-
-  /* 
-     We map data to the format Recharts expects.
-     x: density (0-1)
-     y: memberCount
-     z: memberCount (for bubble size, though we might want a fixed size or log scale)
-  */
   const chartData = data.map((item) => ({
     x: item.density || 0,
     y: item.memberCount,

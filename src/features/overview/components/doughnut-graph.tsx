@@ -39,21 +39,21 @@ export function DoughnutGraph({ auditScore }: DoughnutGraphProps) {
     <div className='flex flex-col items-center'>
       <ChartContainer
         config={chartConfig}
-        className='mx-auto aspect-square max-h-[280px]'
+        className='mx-auto aspect-square h-[120px]'
       >
         <RadialBarChart
           data={chartData}
           startAngle={0}
           endAngle={endAngle}
-          innerRadius={80}
-          outerRadius={110}
+          innerRadius={55}
+          outerRadius={75}
         >
           <PolarGrid
             gridType='circle'
             radialLines={false}
             stroke='none'
             className='first:fill-muted last:fill-background'
-            polarRadius={[86, 74]}
+            polarRadius={[61, 49]}
           />
           <RadialBar dataKey='value' background cornerRadius={10} />
           <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
@@ -70,14 +70,14 @@ export function DoughnutGraph({ auditScore }: DoughnutGraphProps) {
                       <tspan
                         x={viewBox.cx}
                         y={viewBox.cy}
-                        className='fill-foreground text-4xl font-bold'
+                        className='fill-foreground text-2xl font-bold'
                       >
                         {auditScore}
                       </tspan>
                       <tspan
                         x={viewBox.cx}
-                        y={(viewBox.cy || 0) + 24}
-                        className='fill-muted-foreground'
+                        y={(viewBox.cy || 0) + 20}
+                        className='fill-muted-foreground text-xs'
                       >
                         Score
                       </tspan>
