@@ -30,7 +30,7 @@ export function DataTable<TData>({
     <div className='flex flex-col space-y-4'>
       {children}
       <div className='overflow-hidden rounded-lg border'>
-        <ScrollArea className='w-full'>
+        <ScrollArea className='max-h-[calc(100dvh-13rem)] w-full'>
           <Table>
             <TableHeader className='bg-muted sticky top-0 z-10'>
               {table.getHeaderGroups().map((headerGroup) => (

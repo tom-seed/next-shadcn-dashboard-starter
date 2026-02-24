@@ -165,7 +165,7 @@ export default function ContentSimilarityView({
 
   function LoadingSkeleton() {
     return (
-      <div className='flex flex-1 flex-col gap-6'>
+      <div className='flex min-w-0 flex-1 flex-col gap-6'>
         <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -211,7 +211,7 @@ export default function ContentSimilarityView({
   if (isLoading || (isPending && issues.length === 0)) {
     return (
       <PageContainer>
-        <div className='flex flex-1 flex-col gap-6'>
+        <div className='flex min-w-0 flex-1 flex-col gap-6'>
           <Heading
             title='Content Similarity'
             description='Pages with highly similar or duplicate content'
@@ -224,7 +224,7 @@ export default function ContentSimilarityView({
 
   return (
     <PageContainer>
-      <div className='flex flex-1 flex-col gap-6'>
+      <div className='flex min-w-0 flex-1 flex-col gap-6'>
         <Heading
           title='Content Similarity'
           description='Pages with highly similar or duplicate content'
@@ -296,25 +296,25 @@ export default function ContentSimilarityView({
                         onClick={() => toggleGroup(group.groupId)}
                         className='hover:bg-muted/50 flex w-full items-center justify-between px-4 py-3 text-left transition-colors'
                       >
-                        <div className='flex items-center gap-3'>
+                        <div className='flex min-w-0 items-center gap-3'>
                           {isExpanded ? (
-                            <IconChevronDown className='text-muted-foreground h-4 w-4' />
+                            <IconChevronDown className='text-muted-foreground h-4 w-4 shrink-0' />
                           ) : (
-                            <IconChevronRight className='text-muted-foreground h-4 w-4' />
+                            <IconChevronRight className='text-muted-foreground h-4 w-4 shrink-0' />
                           )}
                           <Badge
                             variant='outline'
-                            className={`border-transparent text-[10px] ${severity.badge}`}
+                            className={`shrink-0 border-transparent text-[10px] ${severity.badge}`}
                           >
                             {severity.label}
                           </Badge>
-                          <span className='font-medium'>
+                          <span className='min-w-0 truncate font-medium'>
                             {group.groupId === 'Ungrouped'
                               ? 'Uncategorized Matches'
                               : `Similarity Group ${group.groupId}`}
                           </span>
                         </div>
-                        <div className='flex items-center gap-4'>
+                        <div className='flex shrink-0 items-center gap-4'>
                           <div className='flex items-center gap-2'>
                             <span className='font-bold tabular-nums'>
                               {group.urls.length}
@@ -331,7 +331,7 @@ export default function ContentSimilarityView({
                       </button>
 
                       {isExpanded && (
-                        <div className='border-t px-4 py-3'>
+                        <div className='overflow-hidden border-t px-4 py-3'>
                           <p className='text-muted-foreground mb-3 text-xs'>
                             These pages have highly similar content:
                           </p>
@@ -342,7 +342,7 @@ export default function ContentSimilarityView({
                                 className='bg-muted/40 flex items-center justify-between rounded-md border px-3 py-2'
                               >
                                 <span
-                                  className='flex-1 truncate text-sm font-medium'
+                                  className='min-w-0 flex-1 truncate text-sm font-medium'
                                   title={url}
                                 >
                                   {url.replace(/^https?:\/\/[^/]+/, '')}
