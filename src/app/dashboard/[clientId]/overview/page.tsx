@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { getClientOverviewData } from '@/features/overview/lib/get-client-overview-data';
 import { ensureClientAccess } from '@/lib/auth/memberships';
 import { AuditProgressChart } from '@/features/overview/components/audit-progress-chart';
+import ReCrawlButton from '@/features/overview/components/re-crawl-button';
 import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
 import { DoughnutGraph } from '@/features/overview/components/doughnut-graph';
 import { Separator } from '@/components/ui/separator';
@@ -347,9 +348,18 @@ export default async function ClientOverviewPage({
                 {latestCrawlStateLabel}
               </Badge>
             </div>
-            <p className='text-muted-foreground text-xs'>
-              Last audit: {lastAuditAt}
-            </p>
+            <div className='flex items-center gap-3'>
+              <p className='text-muted-foreground text-xs'>
+                Last audit: {lastAuditAt}
+              </p>
+              {client?.url && (
+                <ReCrawlButton
+                  clientId={String(cid)}
+                  url={client.url}
+                  disabled={latestCrawl?.state === 'STARTED'}
+                />
+              )}
+            </div>
           </div>
 
           {/* B. Vitals Row */}

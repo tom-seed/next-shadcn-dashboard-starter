@@ -10,9 +10,14 @@ import { toast } from 'sonner';
 type Props = {
   clientId: string;
   url: string;
+  disabled?: boolean;
 };
 
-export default function ReCrawlButton({ clientId, url }: Props) {
+export default function ReCrawlButton({
+  clientId,
+  url,
+  disabled: externalDisabled
+}: Props) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -41,7 +46,7 @@ export default function ReCrawlButton({ clientId, url }: Props) {
   return (
     <Button
       onClick={handleReCrawl}
-      disabled={loading}
+      disabled={loading || externalDisabled}
       variant='outline'
       className='gap-2'
     >
