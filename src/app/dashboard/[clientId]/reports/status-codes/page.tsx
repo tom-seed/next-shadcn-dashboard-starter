@@ -8,11 +8,10 @@ import {
   CardTitle,
   CardDescription
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@/components/ui/heading';
+import { StatCard } from '@/components/ui/stat-card';
+import { DeltaBadge } from '@/components/ui/delta-badge';
 import { ensureClientAccess } from '@/lib/auth/memberships';
 import { getClientOverviewData } from '@/features/overview/lib/get-client-overview-data';
 import { AreaGraphStatusCodes } from '@/features/overview/components/area-graph-status-codes';
@@ -76,8 +75,8 @@ export default async function StatusCodesReportPage({
     );
   }
 
-  const audit = latest as Record<string, any>;
-  const prev = (previous as Record<string, any>) ?? null;
+  const audit = latest as Record<string, unknown>;
+  const prev = (previous as Record<string, unknown>) ?? null;
 
   const val = (field: string) => (audit[field] as number) ?? 0;
   const prevVal = (field: string) =>
@@ -88,33 +87,6 @@ export default async function StatusCodesReportPage({
     val('pages_3xx_response') +
     val('pages_4xx_response') +
     val('pages_5xx_response');
-
-  function DeltaBadge({
-    current,
-    previous: p,
-    invertColor
-  }: {
-    current: number;
-    previous: number | null;
-    invertColor?: boolean;
-  }) {
-    if (p === null) return null;
-    const diff = current - p;
-    if (diff === 0) return null;
-    const isUp = diff > 0;
-    const upColor = invertColor ? 'text-green-600' : 'text-red-600';
-    const downColor = invertColor ? 'text-red-600' : 'text-green-600';
-    return (
-      <Badge variant='outline' className={isUp ? upColor : downColor}>
-        {isUp ? (
-          <IconTrendingUp className='mr-1 h-3 w-3' />
-        ) : (
-          <IconTrendingDown className='mr-1 h-3 w-3' />
-        )}
-        {isUp ? `+${diff}` : diff}
-      </Badge>
-    );
-  }
 
   const overviewCards: {
     label: string;
@@ -150,52 +122,6 @@ export default async function StatusCodesReportPage({
     }
   ];
 
-  function DetailTable({
-    title,
-    description,
-    rows,
-    accentColor
-  }: {
-    title: string;
-    description: string;
-    rows: StatusRow[];
-    accentColor: string;
-  }) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-1'>
-            {rows.map((r) => {
-              const count = val(r.field);
-              const p = prevVal(r.field);
-              return (
-                <Link
-                  key={r.field}
-                  href={`/dashboard/${cid}/audits/issues/${r.field.replace(/_/g, '-')}`}
-                  className='hover:bg-muted/50 flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors'
-                >
-                  <span className='font-medium'>{r.label}</span>
-                  <div className='flex items-center gap-3'>
-                    <span
-                      className={`text-lg font-bold tabular-nums ${count > 0 ? accentColor : 'text-muted-foreground'}`}
-                    >
-                      {count}
-                    </span>
-                    <DeltaBadge current={count} previous={p} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col gap-6'>
@@ -204,66 +130,110 @@ export default async function StatusCodesReportPage({
           description='HTTP response code distribution and trends'
         />
 
-        {/* Overview cards */}
         <div className='grid gap-4 md:grid-cols-4'>
           {overviewCards.map((c) => {
             const count = val(c.field);
-            const p = prevVal(c.field);
             const pct =
               totalPages > 0 ? Math.round((count / totalPages) * 100) : 0;
             return (
-              <Card key={c.field}>
-                <CardContent className='flex flex-col gap-2 py-4'>
-                  <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-                    {c.label}
-                  </p>
-                  <div className='flex items-baseline gap-2'>
-                    <span
-                      className={`text-2xl font-bold tabular-nums ${c.color}`}
-                    >
-                      {count}
-                    </span>
-                    <span className='text-muted-foreground text-xs'>
-                      {pct}%
-                    </span>
-                    <DeltaBadge
-                      current={count}
-                      previous={p}
-                      invertColor={c.invertDelta}
-                    />
-                  </div>
-                  <Progress value={pct} className={`h-1.5 ${c.barColor}`} />
-                </CardContent>
-              </Card>
+              <StatCard
+                key={c.field}
+                label={c.label}
+                count={count}
+                prevCount={prevVal(c.field)}
+                pct={pct}
+                color={c.color}
+                barColor={c.barColor}
+                invertDelta={c.invertDelta}
+              />
             );
           })}
         </div>
 
-        {/* Status code trends chart */}
         <AreaGraphStatusCodes />
 
-        {/* Detail tables */}
         <div className='grid gap-4 md:grid-cols-3'>
           <DetailTable
             title='3xx Redirects'
             description='Redirect response breakdown'
             rows={rows3xx}
             accentColor='text-amber-600 dark:text-amber-400'
+            cid={cid}
+            val={val}
+            prevVal={prevVal}
           />
           <DetailTable
             title='4xx Client Errors'
             description='Client error response breakdown'
             rows={rows4xx}
             accentColor='text-orange-600 dark:text-orange-400'
+            cid={cid}
+            val={val}
+            prevVal={prevVal}
           />
           <DetailTable
             title='5xx Server Errors'
             description='Server error response breakdown'
             rows={rows5xx}
             accentColor='text-red-600 dark:text-red-400'
+            cid={cid}
+            val={val}
+            prevVal={prevVal}
           />
         </div>
       </div>
     </PageContainer>
+  );
+}
+
+function DetailTable({
+  title,
+  description,
+  rows,
+  accentColor,
+  cid,
+  val,
+  prevVal
+}: {
+  title: string;
+  description: string;
+  rows: StatusRow[];
+  accentColor: string;
+  cid: number;
+  val: (field: string) => number;
+  prevVal: (field: string) => number | null;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className='space-y-1'>
+          {rows.map((r) => {
+            const count = val(r.field);
+            const p = prevVal(r.field);
+            return (
+              <Link
+                key={r.field}
+                href={`/dashboard/${cid}/audits/issues/${r.field.replace(/_/g, '-')}`}
+                className='hover:bg-muted/50 flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors'
+              >
+                <span className='font-medium'>{r.label}</span>
+                <div className='flex items-center gap-3'>
+                  <span
+                    className={`text-lg font-bold tabular-nums ${count > 0 ? accentColor : 'text-muted-foreground'}`}
+                  >
+                    {count}
+                  </span>
+                  <DeltaBadge current={count} previous={p} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

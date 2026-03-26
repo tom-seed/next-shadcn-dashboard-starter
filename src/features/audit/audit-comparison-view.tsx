@@ -8,9 +8,10 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import { Heading } from '@/components/ui/heading';
+import { StatCard } from '@/components/ui/stat-card';
+import { DeltaBadge } from '@/components/ui/delta-badge';
+import { severityConfig } from '@/lib/severity';
 import {
   SECTIONS,
   ISSUE_REGISTRY,
@@ -18,10 +19,6 @@ import {
   type Severity,
   type IssueDefinition
 } from './lib/issue-registry';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 type Props = {
   clientId: string;
@@ -33,122 +30,6 @@ type Props = {
     suggestions: number;
   } | null;
 };
-
-// ---------------------------------------------------------------------------
-// Severity config
-// ---------------------------------------------------------------------------
-
-const severityConfig: Record<
-  Severity,
-  { dot: string; badge: string; text: string; bar: string; label: string }
-> = {
-  critical: {
-    dot: 'bg-red-500',
-    badge: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300',
-    text: 'text-red-600 dark:text-red-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-red-500',
-    label: 'Critical'
-  },
-  warning: {
-    dot: 'bg-amber-500',
-    badge:
-      'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
-    text: 'text-amber-600 dark:text-amber-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-amber-500',
-    label: 'Warning'
-  },
-  opportunity: {
-    dot: 'bg-sky-500',
-    badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300',
-    text: 'text-sky-600 dark:text-sky-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-sky-500',
-    label: 'Opportunity'
-  },
-  info: {
-    dot: 'bg-slate-400',
-    badge:
-      'bg-slate-100 text-slate-700 dark:bg-slate-900/20 dark:text-slate-300',
-    text: 'text-slate-600 dark:text-slate-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-slate-500',
-    label: 'Info'
-  }
-};
-
-// ---------------------------------------------------------------------------
-// Sub-components at module scope
-// ---------------------------------------------------------------------------
-
-function DeltaBadge({
-  current,
-  previous,
-  inverse = false
-}: {
-  current: number;
-  previous: number | null;
-  inverse?: boolean;
-}) {
-  if (previous === null) return null;
-  const diff = current - previous;
-  if (diff === 0) return null;
-  const isUp = diff > 0;
-  const isGood = inverse ? isUp : !isUp;
-  return (
-    <Badge
-      variant='outline'
-      className={isGood ? 'text-green-600' : 'text-red-600'}
-    >
-      {isUp ? (
-        <IconTrendingUp className='mr-1 h-3 w-3' />
-      ) : (
-        <IconTrendingDown className='mr-1 h-3 w-3' />
-      )}
-      {isUp ? `+${diff}` : diff}
-    </Badge>
-  );
-}
-
-function SummaryCard({
-  label,
-  count,
-  prevCount,
-  denominator,
-  color,
-  barColor,
-  inverse = false
-}: {
-  label: string;
-  count: number;
-  prevCount: number | null;
-  denominator: number;
-  color: string;
-  barColor: string;
-  inverse?: boolean;
-}) {
-  const pct = denominator > 0 ? Math.round((count / denominator) * 100) : 0;
-  return (
-    <Card>
-      <CardContent className='flex flex-col gap-2 py-4'>
-        <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-          {label}
-        </p>
-        <div className='flex items-baseline gap-2'>
-          <span className={`text-2xl font-bold tabular-nums ${color}`}>
-            {count.toLocaleString()}
-          </span>
-          {denominator > 0 && (
-            <span className='text-muted-foreground text-xs'>{pct}%</span>
-          )}
-          <DeltaBadge current={count} previous={prevCount} inverse={inverse} />
-        </div>
-        <Progress value={Math.min(pct, 100)} className={`h-1.5 ${barColor}`} />
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main component (server component — no 'use client')
-// ---------------------------------------------------------------------------
 
 export default function AuditComparisonView({
   clientId,
@@ -195,6 +76,13 @@ export default function AuditComparisonView({
       (prevVal('pages_with_multiple_h1s') ?? 0)
     : null;
 
+  const prevTotalPages = previous
+    ? (prevVal('pages_200_response') ?? 0) +
+      (prevVal('pages_3xx_response') ?? 0) +
+      (prevVal('pages_4xx_response') ?? 0) +
+      (prevVal('pages_5xx_response') ?? 0)
+    : null;
+
   return (
     <div className='flex flex-1 flex-col gap-8'>
       <div className='flex items-start justify-between'>
@@ -206,44 +94,38 @@ export default function AuditComparisonView({
 
       {/* Summary Stats */}
       <div className='grid gap-4 md:grid-cols-4'>
-        <SummaryCard
+        <StatCard
           label='Health Score'
           count={latest?.score ?? 0}
           prevCount={previous?.score ?? null}
-          denominator={100}
-          color='text-emerald-600 dark:text-emerald-400'
+          pct={latest?.score ?? 0}
+          color={severityConfig.opportunity.text}
           barColor='[&_[data-slot=progress-indicator]]:bg-emerald-500'
-          inverse={true}
+          invertDelta
         />
-        <SummaryCard
+        <StatCard
           label='Total Pages'
           count={totalPages}
-          prevCount={
-            previous
-              ? (prevVal('pages_200_response') ?? 0) +
-                (prevVal('pages_3xx_response') ?? 0) +
-                (prevVal('pages_4xx_response') ?? 0) +
-                (prevVal('pages_5xx_response') ?? 0)
-              : null
-          }
-          denominator={totalPages}
+          prevCount={prevTotalPages}
           color='text-slate-600 dark:text-slate-400'
-          barColor='[&_[data-slot=progress-indicator]]:bg-slate-500'
-          inverse={true}
+          barColor={severityConfig.info.bar}
+          invertDelta
         />
-        <SummaryCard
+        <StatCard
           label='Critical Issues'
           count={criticalIssues}
           prevCount={prevCritical}
-          denominator={totalPages}
+          pct={
+            totalPages > 0 ? Math.round((criticalIssues / totalPages) * 100) : 0
+          }
           color={severityConfig.critical.text}
           barColor={severityConfig.critical.bar}
         />
-        <SummaryCard
+        <StatCard
           label='Warnings'
           count={warnings}
           prevCount={prevWarnings}
-          denominator={totalPages}
+          pct={totalPages > 0 ? Math.round((warnings / totalPages) * 100) : 0}
           color={severityConfig.warning.text}
           barColor={severityConfig.warning.bar}
         />
@@ -262,12 +144,11 @@ export default function AuditComparisonView({
 
         return (
           <div key={section.key} className='space-y-3'>
-            <div>
-              <h3 className='text-lg font-semibold'>{section.title}</h3>
-              <p className='text-muted-foreground mt-1 text-sm'>
-                {section.description}
-              </p>
-            </div>
+            <Heading
+              size='section'
+              title={section.title}
+              description={section.description}
+            />
 
             <Card>
               <CardContent className='pt-4'>
@@ -295,12 +176,11 @@ export default function AuditComparisonView({
           semantic.clusters > 0 ||
           semantic.suggestions > 0) && (
           <div className='space-y-3'>
-            <div>
-              <h3 className='text-lg font-semibold'>AI-Powered Insights</h3>
-              <p className='text-muted-foreground mt-1 text-sm'>
-                Patterns detected using content analysis and machine learning
-              </p>
-            </div>
+            <Heading
+              size='section'
+              title='AI-Powered Insights'
+              description='Patterns detected using content analysis and machine learning'
+            />
 
             <div className='grid gap-4 md:grid-cols-3'>
               {semantic.cannibalisation > 0 && (
@@ -381,10 +261,6 @@ export default function AuditComparisonView({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Issue row — module-scope sub-component
-// ---------------------------------------------------------------------------
 
 function IssueRow({
   issue,

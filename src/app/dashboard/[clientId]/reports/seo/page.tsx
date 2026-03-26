@@ -9,42 +9,20 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@/components/ui/heading';
+import { StatCard } from '@/components/ui/stat-card';
+import { DeltaBadge } from '@/components/ui/delta-badge';
+import { severityConfig } from '@/lib/severity';
+import type { Severity } from '@/lib/severity';
 import { ensureClientAccess } from '@/lib/auth/memberships';
 import { getClientOverviewData } from '@/features/overview/lib/get-client-overview-data';
-
-type Severity = 'critical' | 'warning' | 'opportunity';
 
 interface IssueRow {
   field: string;
   label: string;
   severity: Severity;
 }
-
-const severityConfig: Record<
-  Severity,
-  { badge: string; text: string; bar: string }
-> = {
-  critical: {
-    badge: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300',
-    text: 'text-red-600 dark:text-red-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-red-500'
-  },
-  warning: {
-    badge:
-      'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
-    text: 'text-amber-600 dark:text-amber-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-amber-500'
-  },
-  opportunity: {
-    badge: 'bg-sky-100 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300',
-    text: 'text-sky-600 dark:text-sky-400',
-    bar: '[&_[data-slot=progress-indicator]]:bg-sky-500'
-  }
-};
 
 const titleRows: IssueRow[] = [
   {
@@ -173,8 +151,8 @@ export default async function SEOHealthReportPage({
     );
   }
 
-  const audit = latest as Record<string, any>;
-  const prev = (previous as Record<string, any>) ?? null;
+  const audit = latest as Record<string, unknown>;
+  const prev = (previous as Record<string, unknown>) ?? null;
 
   const val = (field: string) => (audit[field] as number) ?? 0;
   const prevVal = (field: string) =>
@@ -188,147 +166,12 @@ export default async function SEOHealthReportPage({
   const titleTotal = sumFields(titleRows);
   const descTotal = sumFields(descriptionRows);
   const headingTotal = sumFields(headingRows);
-  const prevTitleTotal = prevSumFields(titleRows);
-  const prevDescTotal = prevSumFields(descriptionRows);
-  const prevHeadingTotal = prevSumFields(headingRows);
 
   const totalPages =
-    (audit.pages_200_response ?? 0) +
-    (audit.pages_3xx_response ?? 0) +
-    (audit.pages_4xx_response ?? 0) +
-    (audit.pages_5xx_response ?? 0);
-
-  function DeltaBadge({
-    current,
-    previous: p
-  }: {
-    current: number;
-    previous: number | null;
-  }) {
-    if (p === null) return null;
-    const diff = current - p;
-    if (diff === 0) return null;
-    const isUp = diff > 0;
-    return (
-      <Badge
-        variant='outline'
-        className={isUp ? 'text-red-600' : 'text-green-600'}
-      >
-        {isUp ? (
-          <IconTrendingUp className='mr-1 h-3 w-3' />
-        ) : (
-          <IconTrendingDown className='mr-1 h-3 w-3' />
-        )}
-        {isUp ? `+${diff}` : diff}
-      </Badge>
-    );
-  }
-
-  function IssueList({
-    rows,
-    title,
-    description
-  }: {
-    rows: IssueRow[];
-    title: string;
-    description: string;
-  }) {
-    const visibleRows = rows.filter(
-      (r) =>
-        val(r.field) > 0 ||
-        r.severity === 'critical' ||
-        r.severity === 'warning'
-    );
-    if (visibleRows.length === 0) return null;
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-1'>
-            {visibleRows.map((r) => {
-              const count = val(r.field);
-              const p = prevVal(r.field);
-              const cfg = severityConfig[r.severity];
-              const pct =
-                totalPages > 0 ? Math.round((count / totalPages) * 100) : 0;
-
-              return (
-                <Link
-                  key={r.field}
-                  href={`/dashboard/${cid}/audits/issues/${r.field.replace(/_/g, '-')}`}
-                  className='hover:bg-muted/50 flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors'
-                >
-                  <div className='flex items-center gap-2'>
-                    <Badge
-                      variant='outline'
-                      className={`border-transparent text-xs ${cfg.badge}`}
-                    >
-                      {r.severity === 'critical'
-                        ? 'Critical'
-                        : r.severity === 'warning'
-                          ? 'Warning'
-                          : 'Opportunity'}
-                    </Badge>
-                    <span className='font-medium'>{r.label}</span>
-                  </div>
-                  <div className='flex items-center gap-3'>
-                    <div className='flex items-center gap-2'>
-                      <span
-                        className={`text-lg font-bold tabular-nums ${cfg.text}`}
-                      >
-                        {count}
-                      </span>
-                      <span className='text-muted-foreground text-xs'>
-                        {pct}%
-                      </span>
-                    </div>
-                    <DeltaBadge current={count} previous={p} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  function SummaryCard({
-    label,
-    count,
-    prevCount,
-    color,
-    barColor
-  }: {
-    label: string;
-    count: number;
-    prevCount: number | null;
-    color: string;
-    barColor: string;
-  }) {
-    const pct = totalPages > 0 ? Math.round((count / totalPages) * 100) : 0;
-    return (
-      <Card>
-        <CardContent className='flex flex-col gap-2 py-4'>
-          <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-            {label}
-          </p>
-          <div className='flex items-baseline gap-2'>
-            <span className={`text-2xl font-bold tabular-nums ${color}`}>
-              {count}
-            </span>
-            <span className='text-muted-foreground text-xs'>{pct}%</span>
-            <DeltaBadge current={count} previous={prevCount} />
-          </div>
-          <Progress value={pct} className={`h-1.5 ${barColor}`} />
-        </CardContent>
-      </Card>
-    );
-  }
+    val('pages_200_response') +
+    val('pages_3xx_response') +
+    val('pages_4xx_response') +
+    val('pages_5xx_response');
 
   return (
     <PageContainer>
@@ -338,48 +181,142 @@ export default async function SEOHealthReportPage({
           description='Title tags, meta descriptions, and heading structure analysis'
         />
 
-        {/* Summary cards */}
         <div className='grid gap-4 md:grid-cols-3'>
-          <SummaryCard
+          <StatCard
             label='Title Issues'
             count={titleTotal}
-            prevCount={prevTitleTotal}
+            prevCount={prevSumFields(titleRows)}
+            pct={
+              totalPages > 0 ? Math.round((titleTotal / totalPages) * 100) : 0
+            }
             color={severityConfig.critical.text}
             barColor={severityConfig.critical.bar}
           />
-          <SummaryCard
+          <StatCard
             label='Description Issues'
             count={descTotal}
-            prevCount={prevDescTotal}
+            prevCount={prevSumFields(descriptionRows)}
+            pct={
+              totalPages > 0 ? Math.round((descTotal / totalPages) * 100) : 0
+            }
             color={severityConfig.warning.text}
             barColor={severityConfig.warning.bar}
           />
-          <SummaryCard
+          <StatCard
             label='Heading Issues'
             count={headingTotal}
-            prevCount={prevHeadingTotal}
+            prevCount={prevSumFields(headingRows)}
+            pct={
+              totalPages > 0 ? Math.round((headingTotal / totalPages) * 100) : 0
+            }
             color={severityConfig.opportunity.text}
             barColor={severityConfig.opportunity.bar}
           />
         </div>
 
-        {/* Detailed breakdowns */}
         <IssueList
           rows={titleRows}
           title='Title Tags'
           description='Page title optimization'
+          cid={cid}
+          val={val}
+          prevVal={prevVal}
+          totalPages={totalPages}
         />
         <IssueList
           rows={descriptionRows}
           title='Meta Descriptions'
           description='Description tag optimization'
+          cid={cid}
+          val={val}
+          prevVal={prevVal}
+          totalPages={totalPages}
         />
         <IssueList
           rows={headingRows}
           title='Headings'
           description='H1–H6 heading structure'
+          cid={cid}
+          val={val}
+          prevVal={prevVal}
+          totalPages={totalPages}
         />
       </div>
     </PageContainer>
+  );
+}
+
+function IssueList({
+  rows,
+  title,
+  description,
+  cid,
+  val,
+  prevVal,
+  totalPages
+}: {
+  rows: IssueRow[];
+  title: string;
+  description: string;
+  cid: number;
+  val: (field: string) => number;
+  prevVal: (field: string) => number | null;
+  totalPages: number;
+}) {
+  const visibleRows = rows.filter(
+    (r) =>
+      val(r.field) > 0 || r.severity === 'critical' || r.severity === 'warning'
+  );
+  if (visibleRows.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className='space-y-1'>
+          {visibleRows.map((r) => {
+            const count = val(r.field);
+            const p = prevVal(r.field);
+            const cfg = severityConfig[r.severity];
+            const pct =
+              totalPages > 0 ? Math.round((count / totalPages) * 100) : 0;
+
+            return (
+              <Link
+                key={r.field}
+                href={`/dashboard/${cid}/audits/issues/${r.field.replace(/_/g, '-')}`}
+                className='hover:bg-muted/50 flex items-center justify-between rounded-md px-3 py-2.5 text-sm transition-colors'
+              >
+                <div className='flex items-center gap-2'>
+                  <Badge
+                    variant='outline'
+                    className={`border-transparent text-xs ${cfg.badge}`}
+                  >
+                    {cfg.label}
+                  </Badge>
+                  <span className='font-medium'>{r.label}</span>
+                </div>
+                <div className='flex items-center gap-3'>
+                  <div className='flex items-center gap-2'>
+                    <span
+                      className={`text-lg font-bold tabular-nums ${cfg.text}`}
+                    >
+                      {count}
+                    </span>
+                    <span className='text-muted-foreground text-xs'>
+                      {pct}%
+                    </span>
+                  </div>
+                  <DeltaBadge current={count} previous={p} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
