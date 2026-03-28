@@ -1,6 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
-// previewFeatures = ["postgresqlExtensions"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -8,7 +7,6 @@ datasource db {
   url               = env("PRISMA_DATABASE_URL")
   directUrl         = env("POSTGRES_URL")
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
-// extensions        = [vector]
 }
 
 model Client {
@@ -19,6 +17,7 @@ model Client {
   clerkOrganizationId String?            @unique
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @default(now()) @updatedAt
+  crawlConfig         Json?
   audits              Audit[]
   auditIssues         AuditIssue[]
   ClientInvite        ClientInvite[]
@@ -27,6 +26,7 @@ model Client {
   hreflangLinks       HreflangLink[]
   images              Image[]
   internalLinks       InternalLink[]
+  Recommendation      Recommendation[]
   Task                Task[]
   urls                Urls[]
 }
@@ -61,6 +61,7 @@ model Crawl {
   createdAt               DateTime                 @default(now())
   state                   CrawlState               @default(STARTED)
   batchId                 String?
+  recommendationBatchId   String?
   audit                   Audit?
   contentChangesCurrent   ContentChange[]          @relation("CurrentCrawlChange")
   contentChangesPrevious  ContentChange[]          @relation("PreviousCrawlChange")
@@ -75,13 +76,13 @@ model Crawl {
 }
 
 model CrawlMeta {
-  id              Int      @id @default(autoincrement())
-  crawlId         Int      @unique
-  robotsTxtRaw    String?
-  robotsTxtRules  Json?
-  sitemapUrls     String[]
-  createdAt       DateTime @default(now())
-  crawl           Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  id             Int      @id @default(autoincrement())
+  crawlId        Int      @unique
+  robotsTxtRaw   String?
+  robotsTxtRules Json?
+  sitemapUrls    String[]
+  createdAt      DateTime @default(now())
+  crawl          Crawl    @relation(fields: [crawlId], references: [id], onDelete: Cascade)
 }
 
 model Urls {
@@ -109,14 +110,14 @@ model Urls {
   paginationNext             String?
   paginationPrev             String?
   originalStatus             Int?
-  wordCount                  Int?
-  metaRobots                 String?
-  isNoindex                  Boolean                  @default(false)
-  isNofollow                 Boolean                  @default(false)
-  hasSchemaMarkup            Boolean                  @default(false)
-  schemaTypes                String[]
-  responseTimeMs             Int?
   depth                      Int?
+  hasSchemaMarkup            Boolean                  @default(false)
+  isNofollow                 Boolean                  @default(false)
+  isNoindex                  Boolean                  @default(false)
+  metaRobots                 String?
+  responseTimeMs             Int?
+  schemaTypes                String[]
+  wordCount                  Int?
   auditIssues                AuditIssue[]
   contentChanges             ContentChange[]
   clusterMembers             EmbeddingClusterMember[]
@@ -128,6 +129,7 @@ model Urls {
   suggestedSource            InternalLinkSuggestion[] @relation("SourceUrlSuggestions")
   suggestedTarget            InternalLinkSuggestion[] @relation("TargetUrlSuggestions")
   PageEmbedding              PageEmbedding?
+  Recommendation             Recommendation[]
   Task                       Task[]
   client                     Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   crawl                      Crawl?                   @relation(fields: [crawlId], references: [id], onDelete: Cascade)
@@ -219,24 +221,26 @@ model Audit {
   total_images_unoptimized_format      Int          @default(0)
   pages_broken_link_recommendation     Int          @default(0)
   pages_content_similarity             Int          @default(0)
-  pages_thin_content                   Int          @default(0)
-  pages_noindex                        Int          @default(0)
-  pages_nofollow                       Int          @default(0)
-  pages_missing_schema                 Int          @default(0)
-  pages_with_schema                    Int          @default(0)
-  pages_slow_response                  Int          @default(0)
-  pages_with_mixed_content             Int          @default(0)
-  pages_deep                           Int          @default(0)
-  pages_duplicate_title                Int          @default(0)
-  pages_duplicate_description          Int          @default(0)
-  pages_in_redirect_chain              Int          @default(0)
-  pages_broken_pagination              Int          @default(0)
   pages_blocked_by_robots              Int          @default(0)
-  pages_in_sitemap_not_crawled         Int          @default(0)
-  pages_not_in_sitemap                 Int          @default(0)
-  pages_in_sitemap_non_200             Int          @default(0)
+  pages_broken_pagination              Int          @default(0)
+  pages_deep                           Int          @default(0)
+  pages_duplicate_description          Int          @default(0)
+  pages_duplicate_title                Int          @default(0)
   pages_exact_duplicate_content        Int          @default(0)
+  pages_in_redirect_chain              Int          @default(0)
+  pages_in_sitemap_non_200             Int          @default(0)
+  pages_in_sitemap_not_crawled         Int          @default(0)
+  pages_missing_schema                 Int          @default(0)
+  pages_nofollow                       Int          @default(0)
+  pages_noindex                        Int          @default(0)
   pages_non_indexable                  Int          @default(0)
+  pages_not_in_sitemap                 Int          @default(0)
+  pages_slow_response                  Int          @default(0)
+  pages_thin_content                   Int          @default(0)
+  pages_with_mixed_content             Int          @default(0)
+  pages_with_schema                    Int          @default(0)
+  pages_h1_same_as_title               Int          @default(0)
+  pages_with_long_h1                   Int          @default(0)
   client                               Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   crawl                                Crawl        @relation(fields: [crawlId], references: [id], onDelete: Cascade)
   issues                               AuditIssue[]
@@ -306,27 +310,36 @@ model InternalLinkSuggestion {
 }
 
 model AuditIssue {
-  id        Int           @id @default(autoincrement())
-  clientId  Int
-  auditId   Int
-  urlId     Int
-  issueKey  String
-  metadata  Json?
-  status    IssueStatus   @default(OPEN)
-  priority  IssuePriority @default(MEDIUM)
-  fixedAt   DateTime?
-  ignoredAt DateTime?
-  createdAt DateTime      @default(now())
-  audit     Audit         @relation(fields: [auditId], references: [id], onDelete: Cascade)
-  client    Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  url       Urls          @relation(fields: [urlId], references: [id], onDelete: Cascade)
-  Task      Task[]
+  id                   Int                  @id @default(autoincrement())
+  clientId             Int
+  auditId              Int
+  urlId                Int
+  issueKey             String
+  metadata             Json?
+  status               IssueStatus          @default(OPEN)
+  priority             IssuePriority        @default(MEDIUM)
+  fixedAt              DateTime?
+  ignoredAt            DateTime?
+  createdAt            DateTime             @default(now())
+  firstDetectedAt      DateTime             @default(now())
+  lastSeenAt           DateTime             @default(now())
+  lifecycleStatus      IssueLifecycleStatus @default(DETECTED)
+  regressionDetectedAt DateTime?
+  resolvedAt           DateTime?
+  resolvedOutOfBand    Boolean              @default(false)
+  audit                Audit                @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  client               Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  url                  Urls                 @relation(fields: [urlId], references: [id], onDelete: Cascade)
+  Recommendation       Recommendation[]
+  Task                 Task[]
 
   @@index([clientId])
   @@index([auditId])
   @@index([issueKey])
   @@index([priority])
   @@index([status])
+  @@index([clientId, issueKey, lifecycleStatus])
+  @@index([lifecycleStatus])
 }
 
 model InternalLink {
@@ -458,6 +471,30 @@ model Task {
   @@index([urlId])
 }
 
+model Recommendation {
+  id              Int                  @id @default(autoincrement())
+  clientId        Int
+  auditIssueId    Int
+  urlId           Int
+  issueKey        String
+  content         Json
+  confidence      Float?
+  status          RecommendationStatus @default(PENDING)
+  reviewedBy      String?
+  approvedAt      DateTime?
+  appliedAt       DateTime?
+  contextSnapshot Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime
+  AuditIssue      AuditIssue           @relation(fields: [auditIssueId], references: [id], onDelete: Cascade)
+  Client          Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  Urls            Urls                 @relation(fields: [urlId], references: [id], onDelete: Cascade)
+
+  @@index([auditIssueId])
+  @@index([clientId])
+  @@index([clientId, status])
+}
+
 enum GlobalRole {
   NONE
   INTERNAL_ADMIN
@@ -490,4 +527,22 @@ enum IssueStatus {
   IN_PROGRESS
   FIXED
   IGNORED
+}
+
+enum IssueLifecycleStatus {
+  DETECTED
+  AI_GENERATED
+  PENDING_REVIEW
+  APPROVED
+  APPLIED
+  VERIFIED_FIXED
+  WONT_FIX
+  REGRESSION
+}
+
+enum RecommendationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  APPLIED
 }
